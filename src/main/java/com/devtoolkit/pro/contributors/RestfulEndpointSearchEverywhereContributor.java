@@ -47,12 +47,17 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
 
     @Override
     public int getSortWeight() {
-        return 300; // 设置排序权重，控制标签页的显示顺序
+        return 700; // 设置更高的排序权重，确保显示在标签栏中
     }
 
     @Override
     public boolean showInFindResults() {
         return true;
+    }
+
+    @Override
+    public boolean isShownInSeparateTab() {
+        return true; // 确保显示为单独的标签页
     }
 
     @Override
@@ -99,6 +104,16 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     @Override
     public @Nullable Object getDataForItem(@NotNull RestfulEndpointNavigationItem element, @NotNull String dataId) {
         return null;
+    }
+
+    @Override
+    public boolean isEmptyPatternSupported() {
+        return true; // 支持空模式搜索，显示所有端点
+    }
+
+    @Override
+    public boolean isDumbModeSupported() {
+        return true; // 在dumb模式下也支持
     }
 
     @NotNull
