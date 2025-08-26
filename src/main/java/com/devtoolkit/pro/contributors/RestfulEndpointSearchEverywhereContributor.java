@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.awt.Component;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.util.List;
 
@@ -113,8 +114,15 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     public boolean processSelectedItem(@NotNull RestfulEndpointNavigationItem selected, int modifiers, @NotNull String searchText) {
         LOG.info("Processing selected item: " + selected.getName() + ", modifiers: " + modifiers);
         
-        // 检查是否按下了Shift键 (Shift+Enter)
-        if ((modifiers & InputEvent.SHIFT_DOWN_MASK) != 0) {
+        // 检查是否按下了Command键 (Command+Enter)
+        // 需要同时检查传统的META_MASK和新的META_DOWN_MASK
+        boolean isCommandPressed = (modifiers & ActionEvent.META_MASK) != 0 || 
+                                  (modifiers & InputEvent.META_DOWN_MASK) != 0;
+        
+        LOG.info("Modifiers value: " + modifiers + ", ActionEvent.META_MASK: " + ActionEvent.META_MASK + 
+                ", InputEvent.META_DOWN_MASK: " + InputEvent.META_DOWN_MASK + ", isCommandPressed: " + isCommandPressed);
+        
+        if (isCommandPressed) {
             // 复制完整的URL和方法到剪切板
             String fullUrl = selected.getName(); // 格式如: "GET /api/users"
             try {
