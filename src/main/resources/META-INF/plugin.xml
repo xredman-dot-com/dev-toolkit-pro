@@ -1,0 +1,49 @@
+<idea-plugin>
+    <id>com.devtoolkit.pro</id>
+    <name>Dev Toolkit Pro</name>
+    <vendor email="maoba@anybots.cloud" url="https://anybots.cloud">anybots.cloud</vendor>
+
+    <description><![CDATA[
+    Dev Toolkit Pro is a powerful IntelliJ IDEA plugin designed to enhance developer productivity.
+    
+    Features:
+    - Global fuzzy search for RESTful URLs with keyboard shortcuts
+    - Quick navigation to API endpoints
+    - Enhanced development workflow
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>Version 1.0.0</h3>
+    <ul>
+        <li>Initial release</li>
+        <li>Global fuzzy search for RESTful URLs</li>
+        <li>Keyboard shortcut support</li>
+    </ul>
+    ]]></change-notes>
+
+    <!-- Product and plugin compatibility requirements -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- RESTful Endpoints Contributor for Choose by Name dialog -->
+        <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"/>
+    </extensions>
+
+    <actions>
+        <!-- Global RESTful URL Search Action -->
+        <action id="DevToolkitPro.SearchRestfulUrls" 
+                class="com.devtoolkit.pro.actions.SearchRestfulUrlsAction" 
+                text="Search RESTful URLs" 
+                description="Global fuzzy search for RESTful URLs">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift R"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="cmd shift R"/>
+        </action>
+        
+        <!-- Add action to Tools menu -->
+        <group id="DevToolkitPro.ToolsMenu" text="Dev Toolkit Pro" description="Dev Toolkit Pro actions">
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+            <reference ref="DevToolkitPro.SearchRestfulUrls"/>
+        </group>
+    </actions>
+</idea-plugin>
