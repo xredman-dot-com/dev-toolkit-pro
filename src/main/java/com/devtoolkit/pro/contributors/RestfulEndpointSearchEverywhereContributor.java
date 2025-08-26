@@ -10,14 +10,12 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.Processor;
-import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.Component;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * RESTful端点搜索贡献者
@@ -31,6 +29,8 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     
     public RestfulEndpointSearchEverywhereContributor(@NotNull AnActionEvent initEvent) {
         this.project = initEvent.getProject();
+        LOG.info("RestfulEndpointSearchEverywhereContributor created for project: " + 
+                (project != null ? project.getName() : "null"));
     }
 
     @NotNull
@@ -47,42 +47,46 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
 
     @Override
     public int getSortWeight() {
-        return 700; // 设置更高的排序权重，确保显示在标签栏中
+        return 700;
     }
 
     @Override
     public boolean showInFindResults() {
-        return true;
+        return false; // 不在Find Results中显示，只在独立标签页中显示
     }
 
     @Override
     public void fetchElements(@NotNull String pattern,
                             @NotNull ProgressIndicator progressIndicator,
                             @NotNull Processor<? super RestfulEndpointNavigationItem> consumer) {
+        LOG.info("fetchElements called with pattern: '" + pattern + "'");
+        
         if (project == null) {
+            LOG.warn("Project is null, cannot fetch endpoints");
             return;
         }
 
         ApplicationManager.getApplication().runReadAction(() -> {
             try {
-                LOG.info("Fetching RESTful endpoints for pattern: " + pattern);
-                
                 RestfulUrlService urlService = new RestfulUrlService(project);
                 List<RestfulEndpointNavigationItem> endpoints = urlService.findAllRestfulEndpoints();
                 
-                // 过滤匹配的端点
+                LOG.info("Found " + endpoints.size() + " total endpoints");
+                
+                int processedCount = 0;
                 for (RestfulEndpointNavigationItem endpoint : endpoints) {
                     if (progressIndicator.isCanceled()) {
+                        LOG.info("Search canceled by user");
                         break;
                     }
                     
-                    // 简单的模糊匹配
                     if (pattern.isEmpty() || matchesPattern(endpoint.getName(), pattern)) {
                         consumer.process(endpoint);
+                        processedCount++;
                     }
                 }
                 
-                LOG.info("Processed " + endpoints.size() + " endpoints for pattern: " + pattern);
+                LOG.info("Processed " + processedCount + " matching endpoints for pattern: '" + pattern + "'");
             } catch (Exception e) {
                 LOG.error("Error fetching RESTful endpoints", e);
             }
@@ -91,9 +95,14 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
 
     @Override
     public boolean processSelectedItem(@NotNull RestfulEndpointNavigationItem selected, int modifiers, @NotNull String searchText) {
-        // 导航到选中的端点
-        selected.navigate(true);
-        return true;
+        LOG.info("Processing selected item: " + selected.getName());
+        try {
+            selected.navigate(true);
+            return true;
+        } catch (Exception e) {
+            LOG.error("Error navigating to selected item", e);
+            return false;
+        }
     }
 
     @Override
@@ -112,7 +121,6 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
                 if (value instanceof RestfulEndpointNavigationItem) {
                     RestfulEndpointNavigationItem item = (RestfulEndpointNavigationItem) value;
                     setText(item.getName());
-                    // 使用getPresentation()获取图标
                     if (item.getPresentation() != null) {
                         setIcon(item.getPresentation().getIcon(false));
                     }
@@ -154,9 +162,12 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
      * 工厂类用于创建贡献者实例
      */
     public static class Factory implements SearchEverywhereContributorFactory<RestfulEndpointNavigationItem> {
+        private static final Logger FACTORY_LOG = Logger.getInstance(Factory.class);
+        
         @NotNull
         @Override
         public SearchEverywhereContributor<RestfulEndpointNavigationItem> createContributor(@NotNull AnActionEvent initEvent) {
+            FACTORY_LOG.info("Creating RestfulEndpointSearchEverywhereContributor via Factory");
             return new RestfulEndpointSearchEverywhereContributor(initEvent);
         }
     }

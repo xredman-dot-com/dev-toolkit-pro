@@ -92,6 +92,16 @@
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta shift R"/>
         </action>
         
+        <!-- Direct Search Everywhere Action for Restful Endpoints -->
+        <action id="DevToolkitPro.SearchRestfulEndpointsEverywhere" 
+                class="com.devtoolkit.pro.actions.SearchRestfulEndpointsEverywhereAction" 
+                text="Search Restful Endpoints" 
+                description="Open Search Everywhere with Restful Endpoints tab">
+            <keyboard-shortcut keymap="$default" first-keystroke="control alt R"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta alt R"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta alt R"/>
+        </action>
+        
         <!-- Copy Editor Git Link Action -->
         <action id="DevToolkitPro.CopyEditorGitLink" 
                 class="com.devtoolkit.pro.actions.CopyEditorGitLinkAction" 
@@ -104,6 +114,7 @@
         <group id="DevToolkitPro.ToolsMenu" text="Dev Toolkit Pro" description="Dev Toolkit Pro actions">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <reference ref="DevToolkitPro.SearchRestfulUrls"/>
+            <reference ref="DevToolkitPro.SearchRestfulEndpointsEverywhere"/>
         </group>
         
         <!-- Add Git link action to editor context menu -->
