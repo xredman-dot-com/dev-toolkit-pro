@@ -2,6 +2,7 @@ package com.devtoolkit.pro.strategies.impl;
 
 import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
 import com.devtoolkit.pro.strategies.RestfulEndpointScanStrategy;
+import com.devtoolkit.pro.strategies.enhancements.FastApiEnhancedStrategy;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
@@ -15,11 +16,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * FastAPI框架RESTful端点扫描策略
+ * FastAPI框架RESTful端点扫描策略（增强版）
  * 支持PyCharm中的FastAPI项目，包括复杂的路由场景
  * 正确处理include_router的多层嵌套和前缀计算
+ * 增强功能：依赖注入分析、中间件检测、标签和元数据提取
  */
-public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy {
+public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy, FastApiEnhancedStrategy {
     
     private static final String STRATEGY_NAME = "FastAPI";
     private static final int PRIORITY = 2; // 中等优先级
@@ -27,6 +29,12 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
     // FastAPI路由装饰器模式（改进的正则，支持多行和复杂格式）
     private static final Pattern ROUTE_DECORATOR_PATTERN = Pattern.compile(
         "@(\\w+)\\.(get|post|put|delete|patch|head|options|trace)\\s*\\(\\s*[\"']([^\"']*)[\"'][^)]*\\)", 
+        Pattern.MULTILINE | Pattern.DOTALL
+    );
+    
+    // 增强的路由装饰器模式（支持更多参数）
+    private static final Pattern ENHANCED_ROUTE_PATTERN = Pattern.compile(
+        "@(\\w+)\\.(get|post|put|delete|patch|head|options|trace)\\s*\\(\\s*[\"']([^\"']*)[\"']([^)]*)\\)",
         Pattern.MULTILINE | Pattern.DOTALL
     );
     
@@ -44,7 +52,7 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
     
     // 应用实例定义模式
     private static final Pattern APP_DEFINITION_PATTERN = Pattern.compile(
-        "(\\w+)\\s*=\\s*FastAPI\\s*\\([^)]*\\)",
+        "(\\w+)\\s*=\\s*FastAPI\\s*\\(([^)]*)\\)",
         Pattern.MULTILINE
     );
     
@@ -59,30 +67,102 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
         "prefix\\s*=\\s*[\"\"']([^\"\"']*)[\"\"']"
     );
     
+    // === 新增：增强功能的正则模式 ===
+    
+    // 依赖注入模式（Depends函数）
+    private static final Pattern DEPENDENCY_PATTERN = Pattern.compile(
+        "Depends\\s*\\(\\s*(\\w+)\\s*\\)",
+        Pattern.MULTILINE
+    );
+    
+    // 中间件模式
+    private static final Pattern MIDDLEWARE_PATTERN = Pattern.compile(
+        "(\\w+)\\.add_middleware\\s*\\(\\s*(\\w+)(?:[^)]*)\\)",
+        Pattern.MULTILINE | Pattern.DOTALL
+    );
+    
+    // 标签提取模式
+    private static final Pattern TAGS_PATTERN = Pattern.compile(
+        "tags\\s*=\\s*\\[([^\\]]+)\\]"
+    );
+    
+    // 响应模型模式
+    private static final Pattern RESPONSE_MODEL_PATTERN = Pattern.compile(
+        "response_model\\s*=\\s*(\\w+)"
+    );
+    
+    // Pydantic模型定义模式
+    private static final Pattern PYDANTIC_MODEL_PATTERN = Pattern.compile(
+        "class\\s+(\\w+)\\s*\\(\\s*BaseModel\\s*\\)\\s*:",
+        Pattern.MULTILINE
+    );
+    
+    // 路由描述和摘要模式
+    private static final Pattern SUMMARY_PATTERN = Pattern.compile(
+        "summary\\s*=\\s*[\"\"']([^\"\"']*)[\"\"']"
+    );
+    
+    private static final Pattern DESCRIPTION_PATTERN = Pattern.compile(
+        "description\\s*=\\s*[\"\"']([^\"\"']*)[\"\"']"
+    );
+    
     private PsiManager psiManager;
     
-    // 路由器信息
+    // === 增强的数据结构 ===
+    
+    // 路由器信息（增强版）
     private static class RouterInfo {
         String name;
         String prefix = "";
         List<RouteEndpoint> endpoints = new ArrayList<>();
         Set<String> includedRouters = new LinkedHashSet<>();
+        Map<String, Object> metadata = new HashMap<>();
+        List<String> middleware = new ArrayList<>();
         
         RouterInfo(String name) {
             this.name = name;
         }
     }
     
-    // 路由端点信息
+    // 路由端点信息（增强版）
     private static class RouteEndpoint {
         String httpMethod;
         String path;
         String functionName;
         
+        // 增强属性
+        String summary;
+        String description;
+        List<String> tags = new ArrayList<>();
+        String responseModel;
+        List<String> dependencies = new ArrayList<>();
+        boolean deprecated = false;
+        Map<String, Object> responses = new HashMap<>();
+        
         RouteEndpoint(String httpMethod, String path, String functionName) {
             this.httpMethod = httpMethod;
             this.path = path;
             this.functionName = functionName;
+        }
+        
+        // 获取完整描述（包含元数据）
+        public String getFullDescription() {
+            StringBuilder desc = new StringBuilder();
+            desc.append(httpMethod).append(" ").append(path);
+            
+            if (summary != null && !summary.isEmpty()) {
+                desc.append(" - ").append(summary);
+            }
+            
+            if (!tags.isEmpty()) {
+                desc.append(" [").append(String.join(", ", tags)).append("]");
+            }
+            
+            if (deprecated) {
+                desc.append(" [DEPRECATED]");
+            }
+            
+            return desc.toString();
         }
     }
     
@@ -248,15 +328,17 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
     }
     
     /**
-     * 收集路由装饰器
+     * 收集路由装饰器（增强版）
      */
     private void collectRouteDecorators(String fileText, String fileName, Map<String, RouterInfo> allRouters) {
-        Matcher routeMatcher = ROUTE_DECORATOR_PATTERN.matcher(fileText);
+        // 使用增强的正则模式获取更多信息
+        Matcher routeMatcher = ENHANCED_ROUTE_PATTERN.matcher(fileText);
         
         while (routeMatcher.find()) {
             String instanceName = routeMatcher.group(1);  // app 或 router 名称
             String httpMethod = routeMatcher.group(2).toUpperCase();
             String path = routeMatcher.group(3);
+            String decoratorParams = routeMatcher.group(4); // 装饰器的其他参数
             
             // 查找对应的函数名
             String functionName = findFunctionNameAfterDecorator(fileText, routeMatcher.start());
@@ -273,8 +355,134 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
             }
             
             RouteEndpoint endpoint = new RouteEndpoint(httpMethod, path, functionName);
+            
+            // === 新增：提取元数据 ===
+            if (decoratorParams != null) {
+                // 提取标签
+                extractTags(decoratorParams, endpoint);
+                
+                // 提取摘要和描述
+                extractSummaryAndDescription(decoratorParams, endpoint);
+                
+                // 提取响应模型
+                extractResponseModel(decoratorParams, endpoint);
+                
+                // 检查是否已废弃
+                checkDeprecated(decoratorParams, endpoint);
+            }
+            
+            // 提取依赖注入信息
+            extractDependencies(fileText, routeMatcher.start(), endpoint);
+            
             router.endpoints.add(endpoint);
         }
+    }
+    
+    /**
+     * 提取路由标签
+     */
+    private void extractTags(String decoratorParams, RouteEndpoint endpoint) {
+        Matcher tagsMatcher = TAGS_PATTERN.matcher(decoratorParams);
+        if (tagsMatcher.find()) {
+            String tagsStr = tagsMatcher.group(1);
+            // 解析标签列表
+            String[] tags = tagsStr.split(",");
+            for (String tag : tags) {
+                String cleanTag = tag.trim().replaceAll("[\"']", "");
+                if (!cleanTag.isEmpty()) {
+                    endpoint.tags.add(cleanTag);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 提取摘要和描述
+     */
+    private void extractSummaryAndDescription(String decoratorParams, RouteEndpoint endpoint) {
+        // 提取summary
+        Matcher summaryMatcher = SUMMARY_PATTERN.matcher(decoratorParams);
+        if (summaryMatcher.find()) {
+            endpoint.summary = summaryMatcher.group(1);
+        }
+        
+        // 提取description
+        Matcher descMatcher = DESCRIPTION_PATTERN.matcher(decoratorParams);
+        if (descMatcher.find()) {
+            endpoint.description = descMatcher.group(1);
+        }
+    }
+    
+    /**
+     * 提取响应模型
+     */
+    private void extractResponseModel(String decoratorParams, RouteEndpoint endpoint) {
+        Matcher responseMatcher = RESPONSE_MODEL_PATTERN.matcher(decoratorParams);
+        if (responseMatcher.find()) {
+            endpoint.responseModel = responseMatcher.group(1);
+        }
+    }
+    
+    /**
+     * 检查是否已废弃
+     */
+    private void checkDeprecated(String decoratorParams, RouteEndpoint endpoint) {
+        if (decoratorParams.contains("deprecated=True") || 
+            decoratorParams.contains("deprecated = True")) {
+            endpoint.deprecated = true;
+        }
+    }
+    
+    /**
+     * 提取依赖注入信息
+     */
+    private void extractDependencies(String fileText, int decoratorStart, RouteEndpoint endpoint) {
+        // 查找装饰器后面的函数定义
+        String afterDecorator = fileText.substring(decoratorStart);
+        Matcher functionMatcher = FUNCTION_DEFINITION_PATTERN.matcher(afterDecorator);
+        
+        if (functionMatcher.find()) {
+            int functionStart = decoratorStart + functionMatcher.start();
+            int functionEnd = findFunctionEnd(fileText, functionStart);
+            
+            if (functionEnd > functionStart) {
+                String functionText = fileText.substring(functionStart, functionEnd);
+                
+                // 查找依赖注入
+                Matcher depMatcher = DEPENDENCY_PATTERN.matcher(functionText);
+                while (depMatcher.find()) {
+                    String dependency = depMatcher.group(1);
+                    endpoint.dependencies.add(dependency);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 查找函数结束位置（简单实现）
+     */
+    private int findFunctionEnd(String fileText, int functionStart) {
+        // 简单实现：查找下一个不缩进的行或文件末尾
+        String[] lines = fileText.substring(functionStart).split("\\n");
+        int currentPos = functionStart;
+        boolean inFunction = false;
+        
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (i == 0) {
+                inFunction = true;
+                currentPos += line.length() + 1;
+                continue;
+            }
+            
+            // 如果遇到不缩进的非空行，表示函数结束
+            if (inFunction && !line.trim().isEmpty() && !line.startsWith(" ") && !line.startsWith("\t")) {
+                return currentPos;
+            }
+            currentPos += line.length() + 1;
+        }
+        
+        return Math.min(currentPos, fileText.length());
     }
     
     /**
@@ -368,7 +576,7 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
     }
     
     /**
-     * 第三步：生成最终的端点列表
+     * 第三步：生成最终的端点列表（增强版）
      */
     private void generateEndpoints(Map<String, RouterInfo> allRouters, 
                                  List<RestfulEndpointNavigationItem> endpoints, 
@@ -379,13 +587,56 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
                 for (RouteEndpoint endpoint : router.endpoints) {
                     String fullPath = combinePathWithPrefix(router.prefix, endpoint.path);
                     
+                    // 使用增强的描述信息
+                    String enhancedName = createEnhancedEndpointName(endpoint, fullPath);
+                    
                     RestfulEndpointNavigationItem navigationItem = new RestfulEndpointNavigationItem(
                         endpoint.httpMethod, fullPath, router.name, endpoint.functionName, null, project
                     );
+                    
+                    // TODO: 如果RestfulEndpointNavigationItem支持更多属性，可以在这里设置
+                    // navigationItem.setTags(endpoint.tags);
+                    // navigationItem.setSummary(endpoint.summary);
+                    
                     endpoints.add(navigationItem);
                 }
             }
         }
+    }
+    
+    /**
+     * 创建增强的端点名称（包含元数据）
+     */
+    private String createEnhancedEndpointName(RouteEndpoint endpoint, String fullPath) {
+        StringBuilder name = new StringBuilder();
+        name.append(endpoint.httpMethod).append(" ").append(fullPath);
+        
+        // 添加摘要
+        if (endpoint.summary != null && !endpoint.summary.isEmpty()) {
+            name.append(" - ").append(endpoint.summary);
+        }
+        
+        // 添加标签
+        if (!endpoint.tags.isEmpty()) {
+            name.append(" [").append(String.join(", ", endpoint.tags)).append("]");
+        }
+        
+        // 标记已废弃
+        if (endpoint.deprecated) {
+            name.append(" [DEPRECATED]");
+        }
+        
+        // 添加响应模型信息
+        if (endpoint.responseModel != null && !endpoint.responseModel.isEmpty()) {
+            name.append(" -> ").append(endpoint.responseModel);
+        }
+        
+        // 添加依赖信息
+        if (!endpoint.dependencies.isEmpty()) {
+            name.append(" (deps: ").append(String.join(", ", endpoint.dependencies)).append(")");
+        }
+        
+        return name.toString();
     }
     
     /**
@@ -548,6 +799,193 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
             System.err.println("Error finding function name: " + e.getMessage());
         }
         return "unknown_function";
+    }
+    
+    // === 实现FastApiEnhancedStrategy接口的增强方法 ===
+    
+    @Override
+    public Map<String, List<String>> detectDependencyInjection(Project project) {
+        Map<String, List<String>> dependencyMap = new HashMap<>();
+        
+        try {
+            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
+            if (pythonFileType == null) return dependencyMap;
+            
+            Collection<VirtualFile> pythonFiles = FileTypeIndex.getFiles(pythonFileType, 
+                GlobalSearchScope.projectScope(project));
+
+            for (VirtualFile virtualFile : pythonFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (psiFile != null) {
+                    analyzeDependenciesInFile(psiFile, dependencyMap);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to detect dependency injection: " + e.getMessage());
+        }
+        
+        return dependencyMap;
+    }
+    
+    @Override
+    public List<MiddlewareInfo> analyzeMiddleware(Project project) {
+        List<MiddlewareInfo> middlewareList = new ArrayList<>();
+        
+        try {
+            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
+            if (pythonFileType == null) return middlewareList;
+            
+            Collection<VirtualFile> pythonFiles = FileTypeIndex.getFiles(pythonFileType, 
+                GlobalSearchScope.projectScope(project));
+
+            for (VirtualFile virtualFile : pythonFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (psiFile != null) {
+                    analyzeMiddlewareInFile(psiFile, middlewareList);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to analyze middleware: " + e.getMessage());
+        }
+        
+        return middlewareList;
+    }
+    
+    @Override
+    public List<EnhancedEndpointInfo> extractRouteMetadata(Project project) {
+        List<EnhancedEndpointInfo> enhancedEndpoints = new ArrayList<>();
+        
+        try {
+            // 使用现有的扫描逻辑，但提取更多元数据
+            Map<String, RouterInfo> allRouters = new HashMap<>();
+            List<IncludeRelation> includeRelations = new ArrayList<>();
+            
+            collectRouterInfo(project, allRouters, includeRelations);
+            
+            // 转换为增强的端点信息
+            for (RouterInfo router : allRouters.values()) {
+                for (RouteEndpoint endpoint : router.endpoints) {
+                    EnhancedEndpointInfo enhancedInfo = new EnhancedEndpointInfo(
+                        endpoint.path, endpoint.httpMethod);
+                    
+                    enhancedInfo.setSummary(endpoint.summary);
+                    enhancedInfo.setDescription(endpoint.description);
+                    enhancedInfo.setTags(endpoint.tags);
+                    enhancedInfo.setDeprecated(endpoint.deprecated);
+                    enhancedInfo.setResponses(endpoint.responses);
+                    
+                    enhancedEndpoints.add(enhancedInfo);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to extract route metadata: " + e.getMessage());
+        }
+        
+        return enhancedEndpoints;
+    }
+    
+    @Override
+    public List<RestfulEndpointNavigationItem> discoverDynamicRoutes(Project project) {
+        List<RestfulEndpointNavigationItem> dynamicEndpoints = new ArrayList<>();
+        
+        try {
+            // TODO: 实现动态路由发现逻辑
+            // 这里可以分析条件路由、参数化路由等
+            System.out.println("Dynamic route discovery not yet implemented");
+        } catch (Exception e) {
+            System.err.println("Failed to discover dynamic routes: " + e.getMessage());
+        }
+        
+        return dynamicEndpoints;
+    }
+    
+    @Override
+    public Map<String, ModelInfo> analyzePydanticModels(Project project) {
+        Map<String, ModelInfo> modelMap = new HashMap<>();
+        
+        try {
+            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
+            if (pythonFileType == null) return modelMap;
+            
+            Collection<VirtualFile> pythonFiles = FileTypeIndex.getFiles(pythonFileType, 
+                GlobalSearchScope.projectScope(project));
+
+            for (VirtualFile virtualFile : pythonFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (psiFile != null) {
+                    analyzePydanticModelsInFile(psiFile, modelMap);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to analyze Pydantic models: " + e.getMessage());
+        }
+        
+        return modelMap;
+    }
+    
+    // === 辅助方法 ===
+    
+    /**
+     * 分析单个文件中的依赖注入
+     */
+    private void analyzeDependenciesInFile(PsiFile pyFile, Map<String, List<String>> dependencyMap) {
+        try {
+            String fileText = pyFile.getText();
+            Matcher depMatcher = DEPENDENCY_PATTERN.matcher(fileText);
+            
+            List<String> fileDependencies = new ArrayList<>();
+            while (depMatcher.find()) {
+                String dependency = depMatcher.group(1);
+                fileDependencies.add(dependency);
+            }
+            
+            if (!fileDependencies.isEmpty()) {
+                dependencyMap.put(pyFile.getName(), fileDependencies);
+            }
+        } catch (Exception e) {
+            System.err.println("Error analyzing dependencies in file " + pyFile.getName() + ": " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 分析单个文件中的中间件
+     */
+    private void analyzeMiddlewareInFile(PsiFile pyFile, List<MiddlewareInfo> middlewareList) {
+        try {
+            String fileText = pyFile.getText();
+            Matcher middlewareMatcher = MIDDLEWARE_PATTERN.matcher(fileText);
+            
+            while (middlewareMatcher.find()) {
+                String appName = middlewareMatcher.group(1);
+                String middlewareType = middlewareMatcher.group(2);
+                
+                MiddlewareInfo middlewareInfo = new MiddlewareInfo(
+                    middlewareType, "add_middleware", pyFile.getVirtualFile().getPath());
+                middlewareList.add(middlewareInfo);
+            }
+        } catch (Exception e) {
+            System.err.println("Error analyzing middleware in file " + pyFile.getName() + ": " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 分析单个文件中的Pydantic模型
+     */
+    private void analyzePydanticModelsInFile(PsiFile pyFile, Map<String, ModelInfo> modelMap) {
+        try {
+            String fileText = pyFile.getText();
+            Matcher modelMatcher = PYDANTIC_MODEL_PATTERN.matcher(fileText);
+            
+            while (modelMatcher.find()) {
+                String modelName = modelMatcher.group(1);
+                String className = pyFile.getName().replace(".py", "") + "." + modelName;
+                
+                ModelInfo modelInfo = new ModelInfo(modelName, className);
+                modelMap.put(modelName, modelInfo);
+            }
+        } catch (Exception e) {
+            System.err.println("Error analyzing Pydantic models in file " + pyFile.getName() + ": " + e.getMessage());
+        }
     }
     
     /**
