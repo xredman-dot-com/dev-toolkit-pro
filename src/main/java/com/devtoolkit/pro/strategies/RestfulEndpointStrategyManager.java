@@ -1,0 +1,208 @@
+package com.devtoolkit.pro.strategies;
+
+import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
+import com.devtoolkit.pro.strategies.impl.SpringEndpointScanStrategy;
+import com.devtoolkit.pro.strategies.impl.FastApiEndpointScanStrategy;
+import com.devtoolkit.pro.strategies.impl.JaxRsEndpointScanStrategy;
+import com.intellij.openapi.project.Project;
+
+import java.util.*;
+
+/**
+ * RESTful端点扫描策略管理器
+ * 负责管理和调度不同的扫描策略
+ */
+public class RestfulEndpointStrategyManager {
+    
+    private final List<RestfulEndpointScanStrategy> strategies;
+    private final Project project;
+    
+    public RestfulEndpointStrategyManager(Project project) {
+        this.project = project;
+        this.strategies = initializeStrategies();
+    }
+    
+    /**
+     * 初始化所有可用的策略
+     */
+    private List<RestfulEndpointScanStrategy> initializeStrategies() {
+        List<RestfulEndpointScanStrategy> strategyList = new ArrayList<>();
+        
+        // 添加所有策略实现
+        strategyList.add(new SpringEndpointScanStrategy());
+        strategyList.add(new FastApiEndpointScanStrategy());
+        strategyList.add(new JaxRsEndpointScanStrategy());
+        
+        // 按优先级排序（数值越小优先级越高）
+        strategyList.sort(Comparator.comparingInt(RestfulEndpointScanStrategy::getPriority));
+        
+        return strategyList;
+    }
+    
+    /**
+     * 获取所有适用的策略
+     */
+    public List<RestfulEndpointScanStrategy> getApplicableStrategies() {
+        List<RestfulEndpointScanStrategy> applicableStrategies = new ArrayList<>();
+        
+        for (RestfulEndpointScanStrategy strategy : strategies) {
+            try {
+                if (strategy.isApplicable(project)) {
+                    applicableStrategies.add(strategy);
+                    System.out.println("Strategy applicable: " + strategy.getStrategyName());
+                }
+            } catch (Exception e) {
+                System.err.println("Error checking strategy applicability for " + 
+                                 strategy.getStrategyName() + ": " + e.getMessage());
+            }
+        }
+        
+        return applicableStrategies;
+    }
+    
+    /**
+     * 使用最佳策略扫描端点
+     * 选择第一个适用的策略进行扫描
+     */
+    public List<RestfulEndpointNavigationItem> scanWithBestStrategy() {
+        List<RestfulEndpointScanStrategy> applicableStrategies = getApplicableStrategies();
+        
+        if (applicableStrategies.isEmpty()) {
+            System.out.println("No applicable strategies found, falling back to combined scan");
+            return scanWithAllStrategies();
+        }
+        
+        // 使用优先级最高的策略
+        RestfulEndpointScanStrategy bestStrategy = applicableStrategies.get(0);
+        System.out.println("Using strategy: " + bestStrategy.getStrategyName());
+        
+        try {
+            List<RestfulEndpointNavigationItem> endpoints = bestStrategy.scanEndpoints(project);
+            
+            // 如果最佳策略找到的端点较少，尝试其他策略补充
+            if (endpoints.size() < 3 && applicableStrategies.size() > 1) {
+                System.out.println("Primary strategy found few endpoints, trying secondary strategies");
+                return scanWithMultipleStrategies(applicableStrategies);
+            }
+            
+            return endpoints;
+        } catch (Exception e) {
+            System.err.println("Best strategy failed: " + e.getMessage());
+            return scanWithAllStrategies();
+        }
+    }
+    
+    /**
+     * 使用多个策略进行扫描
+     */
+    public List<RestfulEndpointNavigationItem> scanWithMultipleStrategies(List<RestfulEndpointScanStrategy> strategiesToUse) {
+        List<RestfulEndpointNavigationItem> allEndpoints = new ArrayList<>();
+        
+        for (RestfulEndpointScanStrategy strategy : strategiesToUse) {
+            try {
+                System.out.println("Scanning with strategy: " + strategy.getStrategyName());
+                List<RestfulEndpointNavigationItem> endpoints = strategy.scanEndpoints(project);
+                allEndpoints.addAll(endpoints);
+                System.out.println("Found " + endpoints.size() + " endpoints with " + strategy.getStrategyName());
+            } catch (Exception e) {
+                System.err.println("Strategy " + strategy.getStrategyName() + " failed: " + e.getMessage());
+            }
+        }
+        
+        return deduplicateEndpoints(allEndpoints);
+    }
+    
+    /**
+     * 使用所有策略进行扫描（回退方案）
+     */
+    public List<RestfulEndpointNavigationItem> scanWithAllStrategies() {
+        return scanWithMultipleStrategies(strategies);
+    }
+    
+    /**
+     * 根据框架名称获取策略
+     */
+    public List<RestfulEndpointScanStrategy> getStrategiesByFramework(String frameworkName) {
+        List<RestfulEndpointScanStrategy> matchingStrategies = new ArrayList<>();
+        
+        for (RestfulEndpointScanStrategy strategy : strategies) {
+            if (strategy.supportsFramework(frameworkName)) {
+                matchingStrategies.add(strategy);
+            }
+        }
+        
+        return matchingStrategies;
+    }
+    
+    /**
+     * 获取所有可用的策略信息
+     */
+    public List<StrategyInfo> getAllStrategyInfo() {
+        List<StrategyInfo> strategyInfos = new ArrayList<>();
+        
+        for (RestfulEndpointScanStrategy strategy : strategies) {
+            StrategyInfo info = new StrategyInfo(
+                strategy.getStrategyName(),
+                strategy.getPriority(),
+                strategy.isApplicable(project)
+            );
+            strategyInfos.add(info);
+        }
+        
+        return strategyInfos;
+    }
+    
+    /**
+     * 去重端点列表
+     */
+    private List<RestfulEndpointNavigationItem> deduplicateEndpoints(List<RestfulEndpointNavigationItem> endpoints) {
+        Map<String, RestfulEndpointNavigationItem> uniqueEndpoints = new LinkedHashMap<>();
+        
+        for (RestfulEndpointNavigationItem endpoint : endpoints) {
+            String key = endpoint.getHttpMethod() + ":" + endpoint.getPath() + ":" + 
+                        endpoint.getClassName() + "." + endpoint.getMethodName();
+            
+            // 如果已存在相同的端点，保留第一个（优先级高的策略找到的）
+            if (!uniqueEndpoints.containsKey(key)) {
+                uniqueEndpoints.put(key, endpoint);
+            }
+        }
+        
+        List<RestfulEndpointNavigationItem> result = new ArrayList<>(uniqueEndpoints.values());
+        result.sort((a, b) -> a.getName().compareTo(b.getName()));
+        return result;
+    }
+    
+    /**
+     * 策略信息内部类
+     */
+    public static class StrategyInfo {
+        private final String name;
+        private final int priority;
+        private final boolean applicable;
+        
+        public StrategyInfo(String name, int priority, boolean applicable) {
+            this.name = name;
+            this.priority = priority;
+            this.applicable = applicable;
+        }
+        
+        public String getName() {
+            return name;
+        }
+        
+        public int getPriority() {
+            return priority;
+        }
+        
+        public boolean isApplicable() {
+            return applicable;
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("Strategy{name='%s', priority=%d, applicable=%s}", 
+                               name, priority, applicable);
+        }
+    }
+}

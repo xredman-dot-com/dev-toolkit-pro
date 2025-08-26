@@ -1,6 +1,7 @@
 package com.devtoolkit.pro.services;
 
 import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
+import com.devtoolkit.pro.strategies.RestfulEndpointStrategyManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
@@ -32,6 +33,7 @@ import java.util.regex.Pattern;
 public class RestfulUrlService {
     private final Project project;
     private final PsiManager psiManager;
+    private final RestfulEndpointStrategyManager strategyManager;
     
     // Spring注解模式
     private static final String[] SPRING_ANNOTATIONS = {
@@ -52,6 +54,7 @@ public class RestfulUrlService {
     public RestfulUrlService(Project project) {
         this.project = project;
         this.psiManager = PsiManager.getInstance(project);
+        this.strategyManager = new RestfulEndpointStrategyManager(project);
     }
 
     /**
@@ -226,22 +229,58 @@ public class RestfulUrlService {
 
     /**
      * 查找项目中所有的RESTful端点并返回NavigationItem列表
-     * 优先从Spring容器获取，获取不到再通过文件解析
+     * 使用策略模式选择最佳的扫描策略
      */
     public List<RestfulEndpointNavigationItem> findAllRestfulEndpoints() {
+        try {
+            // 使用策略模式扫描端点
+            List<RestfulEndpointNavigationItem> endpoints = strategyManager.scanWithBestStrategy();
+            
+            // 如果策略模式没有找到端点，回退到传统扫描方式
+            if (endpoints.isEmpty()) {
+                System.out.println("Strategy scan found no endpoints, falling back to legacy scan");
+                endpoints = fallbackToLegacyScan();
+            }
+            
+            System.out.println("Total endpoints found: " + endpoints.size());
+            return endpoints;
+            
+        } catch (Exception e) {
+            System.err.println("Strategy-based scan failed: " + e.getMessage());
+            // 如果策略扫描失败，回退到传统扫描
+            return fallbackToLegacyScan();
+        }
+    }
+    
+    /**
+     * 获取策略管理器（用于调试和扩展）
+     */
+    public RestfulEndpointStrategyManager getStrategyManager() {
+        return strategyManager;
+    }
+    
+    /**
+     * 传统扫描方式（回退方案）
+     */
+    private List<RestfulEndpointNavigationItem> fallbackToLegacyScan() {
         List<RestfulEndpointNavigationItem> endpoints = new ArrayList<>();
         
-        // 第一步：尝试从Spring容器获取Controller
-        boolean foundFromSpringContainer = scanFromSpringContainer(endpoints);
-        
-        // 第二步：如果Spring容器中没有找到或找到的很少，则通过文件解析补充
-        if (!foundFromSpringContainer || endpoints.size() < 3) {
-            scanJavaFilesForEndpoints(endpoints);
+        try {
+            // 第一步：尝试从注解获取Controller
+            boolean foundFromAnnotations = scanFromSpringContainer(endpoints);
+            
+            // 第二步：如果注解扫描结果不理想，则通过文件解析补充
+            if (!foundFromAnnotations || endpoints.size() < 3) {
+                scanJavaFilesForEndpoints(endpoints);
+            }
+            
+            // 去重并按名称排序
+            endpoints = deduplicateEndpoints(endpoints);
+            endpoints.sort((a, b) -> a.getName().compareTo(b.getName()));
+            
+        } catch (Exception e) {
+            System.err.println("Legacy scan also failed: " + e.getMessage());
         }
-        
-        // 去重并按名称排序
-        endpoints = deduplicateEndpoints(endpoints);
-        endpoints.sort((a, b) -> a.getName().compareTo(b.getName()));
         
         return endpoints;
     }

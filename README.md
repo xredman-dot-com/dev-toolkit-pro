@@ -6,12 +6,23 @@
 
 ### 🔍 全局RESTful URL模糊搜索
 
+#### 🎯 智能策略模式
+- **多框架支持**: 自动识别并支持 Spring Boot、FastAPI、JAX-RS 等多种框架
+- **智能选择**: 根据项目类型自动选择最适合的扫描策略
+- **优先级调度**: 按框架流行度和检测准确性排序策略
+- **容错回退**: 单个策略失败时自动尝试其他策略
+
+#### 📱 多IDE环境支持
+- **IntelliJ IDEA**: 支持 Spring Boot、Spring MVC、JAX-RS 项目
+- **PyCharm**: 支持 FastAPI、Flask（开发中）项目  
+- **通用支持**: 在任何IDE中都能回退到基础文件扫描
+
 #### 专用搜索对话框
 - **快捷键触发**: 使用 `Ctrl+Shift+R` (Windows/Linux) 或 `Cmd+Shift+R` (macOS) 快速打开搜索对话框
-- **智能扫描**: 自动扫描项目中的Spring Boot和JAX-RS注解，识别所有RESTful API端点
+- **智能扫描**: 使用策略模式自动扫描项目中的RESTful API端点
 - **模糊匹配**: 支持高效的模糊搜索算法，快速定位目标API
 - **一键导航**: 双击搜索结果直接跳转到对应的代码位置
-- **多框架支持**: 支持Spring Boot (@RequestMapping, @GetMapping等) 和JAX-RS (@Path, @GET等) 注解
+- **框架感知**: 根据项目框架自动调整扫描逻辑
 
 #### 🆕 系统搜索集成
 - **快捷键**: 使用 `Ctrl+O` (Windows/Linux) 或 `Cmd+O` (macOS) 打开IntelliJ IDEA系统搜索对话框
@@ -62,9 +73,11 @@
 - **控制器搜索**: 输入控制器类名的部分字符
 - **组合搜索**: 可以组合使用多个关键词进行精确搜索
 
-### 支持的注解
+### 支持的框架和注解
 
-#### Spring Boot
+#### 🍃 Spring 框架 (Java)
+- `@RestController` (Spring Boot)
+- `@Controller` (Spring MVC)
 - `@RequestMapping`
 - `@GetMapping`
 - `@PostMapping`
@@ -72,12 +85,23 @@
 - `@DeleteMapping`
 - `@PatchMapping`
 
-#### JAX-RS
-- `@Path`
+#### 🚀 FastAPI 框架 (Python)
+- `@app.get("/path")`
+- `@app.post("/path")`
+- `@app.put("/path")`
+- `@app.delete("/path")`
+- `@app.patch("/path")`
+- `@router.get("/path")`
+- `@router.post("/path")`
+- 以及其他路由器装饰器
+
+#### 🔌 JAX-RS 框架 (Java)
+- `@Path` (javax.ws.rs / jakarta.ws.rs)
 - `@GET`
 - `@POST`
 - `@PUT`
 - `@DELETE`
+- `@PATCH`
 
 ## 搜索结果格式
 
