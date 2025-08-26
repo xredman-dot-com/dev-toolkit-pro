@@ -9,7 +9,6 @@ import com.intellij.psi.search.FileTypeIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
-// import com.jetbrains.python.psi.*; // 可选依赖
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -17,25 +16,88 @@ import java.util.regex.Pattern;
 
 /**
  * FastAPI框架RESTful端点扫描策略
- * 支持PyCharm中的FastAPI项目
+ * 支持PyCharm中的FastAPI项目，包括复杂的路由场景
+ * 正确处理include_router的多层嵌套和前缀计算
  */
 public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy {
     
     private static final String STRATEGY_NAME = "FastAPI";
     private static final int PRIORITY = 2; // 中等优先级
     
-    // FastAPI路由装饰器模式
-    private static final String[] FASTAPI_DECORATORS = {
-        "app.get", "app.post", "app.put", "app.delete", "app.patch",
-        "router.get", "router.post", "router.put", "router.delete", "router.patch",
-        "api.get", "api.post", "api.put", "api.delete", "api.patch"
-    };
+    // FastAPI路由装饰器模式（改进的正则，支持多行和复杂格式）
+    private static final Pattern ROUTE_DECORATOR_PATTERN = Pattern.compile(
+        "@(\\w+)\\.(get|post|put|delete|patch|head|options|trace)\\s*\\(\\s*[\"']([^\"']*)[\"'][^)]*\\)", 
+        Pattern.MULTILINE | Pattern.DOTALL
+    );
     
-    // FastAPI路径提取正则
-    private static final Pattern ROUTE_PATTERN = Pattern.compile("@(\\w+)\\.(get|post|put|delete|patch)\\s*\\(\\s*['\"]([^'\"]*)['\"]");
-    private static final Pattern ROUTE_PATTERN_EXTENDED = Pattern.compile("\\.(get|post|put|delete|patch)\\s*\\(\\s*['\"]([^'\"]*)['\"]");
+    // 路由器定义模式（支持带参数的APIRouter）
+    private static final Pattern ROUTER_DEFINITION_PATTERN = Pattern.compile(
+        "(\\w+)\\s*=\\s*APIRouter\\s*\\(([^)]*)\\)",
+        Pattern.MULTILINE | Pattern.DOTALL
+    );
+    
+    // include_router模式（更精确的捕获）
+    private static final Pattern INCLUDE_ROUTER_PATTERN = Pattern.compile(
+        "(\\w+)\\.include_router\\s*\\(\\s*(\\w+)(?:[^,)]*,\\s*prefix\\s*=\\s*[\"\"']([^\"\"']*)[\"\"'])?[^)]*\\)",
+        Pattern.MULTILINE | Pattern.DOTALL
+    );
+    
+    // 应用实例定义模式
+    private static final Pattern APP_DEFINITION_PATTERN = Pattern.compile(
+        "(\\w+)\\s*=\\s*FastAPI\\s*\\([^)]*\\)",
+        Pattern.MULTILINE
+    );
+    
+    // 函数定义模式（支持async函数）
+    private static final Pattern FUNCTION_DEFINITION_PATTERN = Pattern.compile(
+        "(?:async\\s+)?def\\s+(\\w+)\\s*\\([^)]*\\)\\s*:",
+        Pattern.MULTILINE
+    );
+    
+    // 路由器定义中的prefix提取模式
+    private static final Pattern ROUTER_PREFIX_PATTERN = Pattern.compile(
+        "prefix\\s*=\\s*[\"\"']([^\"\"']*)[\"\"']"
+    );
     
     private PsiManager psiManager;
+    
+    // 路由器信息
+    private static class RouterInfo {
+        String name;
+        String prefix = "";
+        List<RouteEndpoint> endpoints = new ArrayList<>();
+        Set<String> includedRouters = new LinkedHashSet<>();
+        
+        RouterInfo(String name) {
+            this.name = name;
+        }
+    }
+    
+    // 路由端点信息
+    private static class RouteEndpoint {
+        String httpMethod;
+        String path;
+        String functionName;
+        
+        RouteEndpoint(String httpMethod, String path, String functionName) {
+            this.httpMethod = httpMethod;
+            this.path = path;
+            this.functionName = functionName;
+        }
+    }
+    
+    // include关系
+    private static class IncludeRelation {
+        String parentRouter;
+        String childRouter;
+        String prefix;
+        
+        IncludeRelation(String parentRouter, String childRouter, String prefix) {
+            this.parentRouter = parentRouter;
+            this.childRouter = childRouter;
+            this.prefix = prefix != null ? prefix : "";
+        }
+    }
     
     @Override
     public String getStrategyName() {
@@ -77,16 +139,312 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
         List<RestfulEndpointNavigationItem> endpoints = new ArrayList<>();
         
         try {
-            // 扫描Python文件中的FastAPI路由
-            scanPythonFiles(project, endpoints);
+            // 全局路由器信息存储
+            Map<String, RouterInfo> allRouters = new HashMap<>();
+            List<IncludeRelation> includeRelations = new ArrayList<>();
+            
+            // 第一步：扫描Python文件，收集路由器定义和路由信息
+            collectRouterInfo(project, allRouters, includeRelations);
+            
+            // 第二步：解析include关系，构建路由器树
+            buildRouterTree(allRouters, includeRelations);
+            
+            // 第三步：生成最终的端点列表
+            generateEndpoints(allRouters, endpoints, project);
             
             // 去重并排序
             return deduplicateAndSort(endpoints);
             
         } catch (Exception e) {
             System.err.println("FastAPI strategy scan failed: " + e.getMessage());
+            e.printStackTrace();
             return new ArrayList<>();
         }
+    }
+    
+    /**
+     * 第一步：收集所有路由器信息和include关系
+     */
+    private void collectRouterInfo(Project project, Map<String, RouterInfo> allRouters, 
+                                 List<IncludeRelation> includeRelations) {
+        try {
+            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
+            if (pythonFileType == null) return;
+            
+            Collection<VirtualFile> pythonFiles = FileTypeIndex.getFiles(pythonFileType, 
+                GlobalSearchScope.projectScope(project));
+
+            for (VirtualFile virtualFile : pythonFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (psiFile != null) {
+                    collectFromFile(psiFile, allRouters, includeRelations);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to collect router info: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 从单个文件收集路由器信息
+     */
+    private void collectFromFile(PsiFile pyFile, Map<String, RouterInfo> allRouters, 
+                               List<IncludeRelation> includeRelations) {
+        try {
+            String fileText = pyFile.getText();
+            String fileName = pyFile.getName();
+            
+            // 1. 收集FastAPI应用定义（作为特殊的路由器处理）
+            collectAppDefinitions(fileText, allRouters);
+            
+            // 2. 收集APIRouter定义
+            collectRouterDefinitions(fileText, allRouters);
+            
+            // 3. 收集路由装饰器
+            collectRouteDecorators(fileText, fileName, allRouters);
+            
+            // 4. 收集include_router关系
+            collectIncludeRelations(fileText, includeRelations);
+            
+        } catch (Exception e) {
+            System.err.println("Error collecting from file " + pyFile.getName() + ": " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 收集FastAPI应用定义
+     */
+    private void collectAppDefinitions(String fileText, Map<String, RouterInfo> allRouters) {
+        Matcher appMatcher = APP_DEFINITION_PATTERN.matcher(fileText);
+        while (appMatcher.find()) {
+            String appName = appMatcher.group(1);
+            RouterInfo appRouter = new RouterInfo(appName);
+            appRouter.prefix = ""; // app的基本前缀为空
+            allRouters.put(appName, appRouter);
+        }
+    }
+    
+    /**
+     * 收集APIRouter定义
+     */
+    private void collectRouterDefinitions(String fileText, Map<String, RouterInfo> allRouters) {
+        Matcher routerMatcher = ROUTER_DEFINITION_PATTERN.matcher(fileText);
+        while (routerMatcher.find()) {
+            String routerName = routerMatcher.group(1);
+            String routerParams = routerMatcher.group(2);
+            
+            RouterInfo router = new RouterInfo(routerName);
+            
+            // 提取路由器定义中的prefix
+            if (routerParams != null) {
+                Matcher prefixMatcher = ROUTER_PREFIX_PATTERN.matcher(routerParams);
+                if (prefixMatcher.find()) {
+                    router.prefix = prefixMatcher.group(1);
+                }
+            }
+            
+            allRouters.put(routerName, router);
+        }
+    }
+    
+    /**
+     * 收集路由装饰器
+     */
+    private void collectRouteDecorators(String fileText, String fileName, Map<String, RouterInfo> allRouters) {
+        Matcher routeMatcher = ROUTE_DECORATOR_PATTERN.matcher(fileText);
+        
+        while (routeMatcher.find()) {
+            String instanceName = routeMatcher.group(1);  // app 或 router 名称
+            String httpMethod = routeMatcher.group(2).toUpperCase();
+            String path = routeMatcher.group(3);
+            
+            // 查找对应的函数名
+            String functionName = findFunctionNameAfterDecorator(fileText, routeMatcher.start());
+            if (functionName == null || functionName.isEmpty()) {
+                functionName = "unknown_function";
+            }
+            
+            // 将路由添加到对应的路由器
+            RouterInfo router = allRouters.get(instanceName);
+            if (router == null) {
+                // 如果路由器不存在，创建一个默认的
+                router = new RouterInfo(instanceName);
+                allRouters.put(instanceName, router);
+            }
+            
+            RouteEndpoint endpoint = new RouteEndpoint(httpMethod, path, functionName);
+            router.endpoints.add(endpoint);
+        }
+    }
+    
+    /**
+     * 收集include_router关系
+     */
+    private void collectIncludeRelations(String fileText, List<IncludeRelation> includeRelations) {
+        Matcher includeMatcher = INCLUDE_ROUTER_PATTERN.matcher(fileText);
+        while (includeMatcher.find()) {
+            String parentRouter = includeMatcher.group(1);
+            String childRouter = includeMatcher.group(2);
+            String prefix = includeMatcher.group(3); // 可能为null
+            
+            IncludeRelation relation = new IncludeRelation(parentRouter, childRouter, prefix);
+            includeRelations.add(relation);
+        }
+    }
+    
+    /**
+     * 第二步：构建路由器树，处理include关系
+     */
+    private void buildRouterTree(Map<String, RouterInfo> allRouters, List<IncludeRelation> includeRelations) {
+        // 使用拓扑排序处理嵌套include关系
+        Map<String, Set<String>> dependencies = new HashMap<>();
+        Map<String, Set<String>> dependents = new HashMap<>();
+        
+        // 初始化依赖关系图
+        for (String routerName : allRouters.keySet()) {
+            dependencies.put(routerName, new HashSet<>());
+            dependents.put(routerName, new HashSet<>());
+        }
+        
+        // 构建依赖关系
+        for (IncludeRelation relation : includeRelations) {
+            dependencies.get(relation.parentRouter).add(relation.childRouter);
+            dependents.get(relation.childRouter).add(relation.parentRouter);
+            
+            // 记录include关系
+            RouterInfo parentRouter = allRouters.get(relation.parentRouter);
+            if (parentRouter != null) {
+                parentRouter.includedRouters.add(relation.childRouter);
+            }
+        }
+        
+        // 按依赖关系处理路由器（从叶子节点开始）
+        Set<String> processed = new HashSet<>();
+        for (String routerName : allRouters.keySet()) {
+            if (!processed.contains(routerName)) {
+                processRouterRecursively(routerName, allRouters, includeRelations, processed);
+            }
+        }
+    }
+    
+    /**
+     * 递归处理路由器及其依赖
+     */
+    private void processRouterRecursively(String routerName, Map<String, RouterInfo> allRouters, 
+                                        List<IncludeRelation> includeRelations, Set<String> processed) {
+        if (processed.contains(routerName)) {
+            return;
+        }
+        
+        RouterInfo router = allRouters.get(routerName);
+        if (router == null) {
+            processed.add(routerName);
+            return;
+        }
+        
+        // 先处理所有被包含的路由器
+        for (String includedRouterName : router.includedRouters) {
+            if (!processed.contains(includedRouterName)) {
+                processRouterRecursively(includedRouterName, allRouters, includeRelations, processed);
+            }
+        }
+        
+        // 处理当前路由器：合并被包含路由器的端点
+        for (IncludeRelation relation : includeRelations) {
+            if (relation.parentRouter.equals(routerName)) {
+                RouterInfo childRouter = allRouters.get(relation.childRouter);
+                if (childRouter != null) {
+                    // 为子路由器的所有端点添加前缀
+                    for (RouteEndpoint endpoint : childRouter.endpoints) {
+                        String newPath = combinePathWithPrefix(relation.prefix, endpoint.path);
+                        RouteEndpoint newEndpoint = new RouteEndpoint(endpoint.httpMethod, newPath, endpoint.functionName);
+                        router.endpoints.add(newEndpoint);
+                    }
+                }
+            }
+        }
+        
+        processed.add(routerName);
+    }
+    
+    /**
+     * 第三步：生成最终的端点列表
+     */
+    private void generateEndpoints(Map<String, RouterInfo> allRouters, 
+                                 List<RestfulEndpointNavigationItem> endpoints, 
+                                 Project project) {
+        for (RouterInfo router : allRouters.values()) {
+            // 只从主应用（FastAPI实例）生成端点，避免重复
+            if (isMainApp(router, allRouters)) {
+                for (RouteEndpoint endpoint : router.endpoints) {
+                    String fullPath = combinePathWithPrefix(router.prefix, endpoint.path);
+                    
+                    RestfulEndpointNavigationItem navigationItem = new RestfulEndpointNavigationItem(
+                        endpoint.httpMethod, fullPath, router.name, endpoint.functionName, null, project
+                    );
+                    endpoints.add(navigationItem);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 判断是否为主应用（不被其他路由器include的路由器）
+     */
+    private boolean isMainApp(RouterInfo router, Map<String, RouterInfo> allRouters) {
+        for (RouterInfo otherRouter : allRouters.values()) {
+            if (otherRouter.includedRouters.contains(router.name)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * 组合路径和前缀
+     */
+    private String combinePathWithPrefix(String prefix, String path) {
+        if (prefix == null || prefix.isEmpty()) {
+            return ensureStartsWithSlash(path);
+        }
+        
+        prefix = ensureStartsWithSlash(prefix);
+        path = ensureStartsWithSlash(path);
+        
+        if (prefix.equals("/") && path.equals("/")) {
+            return "/";
+        }
+        
+        if (prefix.equals("/")) {
+            return path;
+        }
+        
+        if (path.equals("/")) {
+            return prefix;
+        }
+        
+        // 移除前缀末尾的/或路径开头的/以避免重复
+        if (prefix.endsWith("/")) {
+            prefix = prefix.substring(0, prefix.length() - 1);
+        }
+        if (path.startsWith("/")) {
+            return prefix + path;
+        } else {
+            return prefix + "/" + path;
+        }
+    }
+    
+    /**
+     * 确保路径以/开头
+     */
+    private String ensureStartsWithSlash(String path) {
+        if (path == null || path.isEmpty()) {
+            return "/";
+        }
+        if (path.startsWith("/")) {
+            return path;
+        }
+        return "/" + path;
     }
     
     /**
@@ -164,89 +522,10 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
             String fileText = pyFile.getText();
             return fileText.contains("from fastapi") || 
                    fileText.contains("import fastapi") ||
-                   fileText.contains("FastAPI");
+                   fileText.contains("FastAPI") ||
+                   fileText.contains("APIRouter");
         } catch (Exception e) {
             return false;
-        }
-    }
-    
-    /**
-     * 扫描Python文件中的FastAPI路由
-     */
-    private void scanPythonFiles(Project project, List<RestfulEndpointNavigationItem> endpoints) {
-        try {
-            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
-            if (pythonFileType == null) return;
-            
-            Collection<VirtualFile> pythonFiles = FileTypeIndex.getFiles(pythonFileType, 
-                GlobalSearchScope.projectScope(project));
-
-            for (VirtualFile virtualFile : pythonFiles) {
-                PsiFile psiFile = psiManager.findFile(virtualFile);
-                if (psiFile != null) {
-                    scanPythonFile(psiFile, endpoints, project);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to scan Python files: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * 扫描单个Python文件
-     */
-    private void scanPythonFile(PsiFile pyFile, List<RestfulEndpointNavigationItem> endpoints, Project project) {
-        try {
-            String fileText = pyFile.getText();
-            String fileName = pyFile.getName();
-            
-            // 使用正则表达式匹配FastAPI路由装饰器
-            Matcher matcher = ROUTE_PATTERN.matcher(fileText);
-            while (matcher.find()) {
-                String appName = matcher.group(1);
-                String httpMethod = matcher.group(2).toUpperCase();
-                String path = matcher.group(3);
-                
-                // 查找对应的函数名（简化处理）
-                String functionName = findFunctionNameAfterDecorator(fileText, matcher.start());
-                if (functionName != null && !functionName.isEmpty()) {
-                    String className = fileName.replace(".py", "");
-                    
-                    RestfulEndpointNavigationItem endpoint = new RestfulEndpointNavigationItem(
-                        httpMethod, path, className, functionName, null, project
-                    );
-                    endpoints.add(endpoint);
-                }
-            }
-            
-            // 备用模式：更宽泛的匹配
-            Matcher extendedMatcher = ROUTE_PATTERN_EXTENDED.matcher(fileText);
-            while (extendedMatcher.find()) {
-                String httpMethod = extendedMatcher.group(1).toUpperCase();
-                String path = extendedMatcher.group(2);
-                
-                String functionName = findFunctionNameAfterDecorator(fileText, extendedMatcher.start());
-                if (functionName != null && !functionName.isEmpty()) {
-                    String className = fileName.replace(".py", "");
-                    
-                    // 检查是否已存在相同的端点
-                    boolean exists = endpoints.stream().anyMatch(ep -> 
-                        ep.getHttpMethod().equals(httpMethod) && 
-                        ep.getPath().equals(path) && 
-                        ep.getMethodName().equals(functionName)
-                    );
-                    
-                    if (!exists) {
-                        RestfulEndpointNavigationItem endpoint = new RestfulEndpointNavigationItem(
-                            httpMethod, path, className, functionName, null, project
-                        );
-                        endpoints.add(endpoint);
-                    }
-                }
-            }
-            
-        } catch (Exception e) {
-            System.err.println("Error scanning Python file " + pyFile.getName() + ": " + e.getMessage());
         }
     }
     
@@ -257,19 +536,12 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy 
         try {
             // 从装饰器位置往后查找 def 关键字
             String afterDecorator = fileText.substring(decoratorStart);
-            Pattern functionPattern = Pattern.compile("\\ndef\\s+(\\w+)\\s*\\(");
-            Matcher matcher = functionPattern.matcher(afterDecorator);
             
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
+            // 查找下一个函数定义
+            Matcher functionMatcher = FUNCTION_DEFINITION_PATTERN.matcher(afterDecorator);
             
-            // 如果没找到，尝试更宽泛的匹配
-            Pattern relaxedPattern = Pattern.compile("def\\s+(\\w+)\\s*\\(");
-            Matcher relaxedMatcher = relaxedPattern.matcher(afterDecorator.substring(0, Math.min(200, afterDecorator.length())));
-            
-            if (relaxedMatcher.find()) {
-                return relaxedMatcher.group(1);
+            if (functionMatcher.find()) {
+                return functionMatcher.group(1);
             }
             
         } catch (Exception e) {
