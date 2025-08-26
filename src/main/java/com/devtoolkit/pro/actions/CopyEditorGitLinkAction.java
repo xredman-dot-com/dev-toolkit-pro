@@ -36,19 +36,19 @@ public class CopyEditorGitLinkAction extends AnAction {
         VirtualFile virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE);
         
         if (project == null || editor == null || virtualFile == null) {
-            Messages.showWarningMessage("无法获取当前文件信息", "错误");
+            Messages.showErrorDialog(project, "无法获取当前文件信息", "错误");
             return;
         }
 
         if (!GitLinkUtil.isGitRepository(project)) {
-            Messages.showWarningMessage("当前项目不是Git仓库", "Git链接不可用");
+            Messages.showErrorDialog(project, "当前项目不是Git仓库", "Git链接不可用");
             return;
         }
 
         // 获取Git仓库信息
         GitLinkUtil.GitRepoInfo repoInfo = GitLinkUtil.getGitRepoInfo(project, virtualFile);
         if (repoInfo == null) {
-            Messages.showWarningMessage("无法获取Git仓库信息", "错误");
+            Messages.showErrorDialog(project, "无法获取Git仓库信息", "错误");
             return;
         }
 
@@ -92,7 +92,7 @@ public class CopyEditorGitLinkAction extends AnAction {
         
         String relativePath = GitLinkUtil.getRelativePath(project, virtualFile);
         if (relativePath == null) {
-            Messages.showWarningMessage("无法获取文件相对路径", "错误");
+            Messages.showErrorDialog(project, "无法获取文件相对路径", "错误");
             return;
         }
 
@@ -112,7 +112,7 @@ public class CopyEditorGitLinkAction extends AnAction {
             repoInfo.getPlatform().getDisplayName() + " Links", options) {
             
             @Override
-            public PopupStep onChosen(GitLinkOption selectedValue, boolean finalChoice) {
+            public PopupStep<?> onChosen(GitLinkOption selectedValue, boolean finalChoice) {
                 if (finalChoice) {
                     selectedValue.action.run();
                 }
@@ -125,7 +125,6 @@ public class CopyEditorGitLinkAction extends AnAction {
                 return value.text;
             }
 
-            @Override
             public String getTooltipTextFor(GitLinkOption value) {
                 return value.description;
             }
@@ -158,7 +157,7 @@ public class CopyEditorGitLinkAction extends AnAction {
                 "文件链接已复制到剪贴板\n" + url, 
                 "Git链接复制成功");
         } else {
-            Messages.showWarningMessage(project, "无法生成文件链接", "错误");
+            Messages.showErrorDialog(project, "无法生成文件链接", "错误");
         }
     }
 
@@ -176,7 +175,7 @@ public class CopyEditorGitLinkAction extends AnAction {
                     repoInfo.getPlatform().getDisplayName(), url, lineNumber), 
                 "Git链接复制成功");
         } else {
-            Messages.showWarningMessage(project, "无法生成行链接", "错误");
+            Messages.showErrorDialog(project, "无法生成行链接", "错误");
         }
     }
 
@@ -208,7 +207,7 @@ public class CopyEditorGitLinkAction extends AnAction {
             }
             Messages.showInfoMessage(project, message, "Git链接复制成功");
         } else {
-            Messages.showWarningMessage(project, "无法生成行范围链接", "错误");
+            Messages.showErrorDialog(project, "无法生成行范围链接", "错误");
         }
     }
 
