@@ -29,6 +29,8 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     private static final Logger LOG = Logger.getInstance(RestfulEndpointSearchEverywhereContributor.class);
     
     private final Project project;
+    private String currentSearchPattern = ""; // 存储当前搜索模式
+    private RestfulEndpointRenderer renderer; // 渲染器实例
     
     public RestfulEndpointSearchEverywhereContributor(@NotNull AnActionEvent initEvent) {
         this.project = initEvent.getProject();
@@ -68,6 +70,12 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
                             @NotNull ProgressIndicator progressIndicator,
                             @NotNull Processor<? super RestfulEndpointNavigationItem> consumer) {
         LOG.info("fetchElements called with pattern: '" + pattern + "'");
+        
+        // 保存当前搜索模式用于高亮显示
+        this.currentSearchPattern = pattern;
+        if (renderer != null) {
+            renderer.setCurrentSearchPattern(pattern);
+        }
         
         if (project == null) {
             LOG.warn("Project is null, cannot fetch endpoints");
@@ -137,22 +145,86 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     @NotNull
     @Override
     public ListCellRenderer<? super RestfulEndpointNavigationItem> getElementsRenderer() {
-        return new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+        if (renderer == null) {
+            renderer = new RestfulEndpointRenderer();
+            renderer.setCurrentSearchPattern(currentSearchPattern);
+        }
+        return renderer;
+    }
+    
+    /**
+     * 自定义渲染器，支持高亮匹配的文本部分
+     */
+    private class RestfulEndpointRenderer extends DefaultListCellRenderer {
+        private String currentSearchPattern = "";
+        
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            
+            if (value instanceof RestfulEndpointNavigationItem) {
+                RestfulEndpointNavigationItem item = (RestfulEndpointNavigationItem) value;
+                String itemName = item.getName();
                 
-                if (value instanceof RestfulEndpointNavigationItem) {
-                    RestfulEndpointNavigationItem item = (RestfulEndpointNavigationItem) value;
-                    setText(item.getName());
-                    if (item.getPresentation() != null) {
-                        setIcon(item.getPresentation().getIcon(false));
-                    }
+                // 设置图标
+                if (item.getPresentation() != null) {
+                    setIcon(item.getPresentation().getIcon(false));
                 }
                 
-                return this;
+                // 获取当前搜索模式（从fetchElements传递过来的pattern）
+                String highlightedText = highlightMatchingText(itemName, getCurrentSearchPattern());
+                setText(highlightedText);
             }
-        };
+            
+            return this;
+        }
+        
+        /**
+         * 高亮匹配的文本部分
+         */
+        private String highlightMatchingText(String text, String pattern) {
+            if (pattern == null || pattern.isEmpty()) {
+                return text;
+            }
+            
+            String lowerText = text.toLowerCase();
+            String lowerPattern = pattern.toLowerCase();
+            
+            // 处理查询参数的情况
+            String searchPattern = lowerPattern;
+            if (lowerPattern.contains("?")) {
+                searchPattern = lowerPattern.split("\\?")[0]; // 只高亮基础路径部分
+            }
+            
+            // 查找匹配的位置并高亮
+            int startIndex = lowerText.indexOf(searchPattern);
+            if (startIndex != -1) {
+                StringBuilder highlighted = new StringBuilder("<html>");
+                highlighted.append(text, 0, startIndex);
+                highlighted.append("<b><font color='#4A90E2'>"); // 蓝色高亮
+                highlighted.append(text, startIndex, startIndex + searchPattern.length());
+                highlighted.append("</font></b>");
+                highlighted.append(text.substring(startIndex + searchPattern.length()));
+                highlighted.append("</html>");
+                return highlighted.toString();
+            }
+            
+            return text;
+        }
+        
+        /**
+         * 获取当前搜索模式
+         */
+        private String getCurrentSearchPattern() {
+            return currentSearchPattern;
+        }
+        
+        /**
+         * 设置当前搜索模式
+         */
+        public void setCurrentSearchPattern(String pattern) {
+            this.currentSearchPattern = pattern;
+        }
     }
 
     /**
