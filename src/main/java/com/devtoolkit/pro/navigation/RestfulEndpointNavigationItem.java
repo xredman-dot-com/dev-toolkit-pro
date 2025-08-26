@@ -1,6 +1,7 @@
 package com.devtoolkit.pro.navigation;
 
 import com.devtoolkit.pro.utils.GitRepositoryUtil;
+import com.devtoolkit.pro.icons.HttpMethodIconProvider;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.openapi.project.Project;
@@ -59,19 +60,8 @@ public class RestfulEndpointNavigationItem implements NavigationItem {
 
             @Override
             public Icon getIcon(boolean unused) {
-                // 根据HTTP方法返回不同的图标颜色或样式
-                switch (httpMethod) {
-                    case "GET":
-                        return com.intellij.icons.AllIcons.Actions.Find;
-                    case "POST":
-                        return com.intellij.icons.AllIcons.Actions.Edit;
-                    case "PUT":
-                        return com.intellij.icons.AllIcons.Actions.Replace;
-                    case "DELETE":
-                        return com.intellij.icons.AllIcons.Actions.Cancel;
-                    default:
-                        return com.intellij.icons.AllIcons.Actions.Execute;
-                }
+                // 使用HttpMethodIconProvider提供的彩色图标
+                return HttpMethodIconProvider.getIcon(httpMethod);
             }
         };
     }
