@@ -2,10 +2,13 @@ package com.devtoolkit.pro.services;
 
 import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.search.FileTypeIndex;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.search.searches.AnnotatedElementsSearch;
 import com.intellij.ide.fileTemplates.FileTemplateManager;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
@@ -13,6 +16,10 @@ import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.impl.source.JavaDummyHolder;
+import com.intellij.psi.impl.source.JavaDummyElement;
+import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.application.ApplicationManager;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -219,17 +226,195 @@ public class RestfulUrlService {
 
     /**
      * 查找项目中所有的RESTful端点并返回NavigationItem列表
+     * 优先从Spring容器获取，获取不到再通过文件解析
      */
     public List<RestfulEndpointNavigationItem> findAllRestfulEndpoints() {
         List<RestfulEndpointNavigationItem> endpoints = new ArrayList<>();
         
-        // 扫描Java文件
-        scanJavaFilesForEndpoints(endpoints);
+        // 第一步：尝试从Spring容器获取Controller
+        boolean foundFromSpringContainer = scanFromSpringContainer(endpoints);
         
-        // 按名称排序
+        // 第二步：如果Spring容器中没有找到或找到的很少，则通过文件解析补充
+        if (!foundFromSpringContainer || endpoints.size() < 3) {
+            scanJavaFilesForEndpoints(endpoints);
+        }
+        
+        // 去重并按名称排序
+        endpoints = deduplicateEndpoints(endpoints);
         endpoints.sort((a, b) -> a.getName().compareTo(b.getName()));
         
         return endpoints;
+    }
+
+    /**
+     * 尝试从Spring注解获取Controller信息
+     * 优先通过注解搜索获取所有@RestController和@Controller类
+     * @param endpoints 存储找到的端点
+     * @return 是否成功找到Controller
+     */
+    private boolean scanFromSpringContainer(List<RestfulEndpointNavigationItem> endpoints) {
+        try {
+            // 尝试通过注解搜索找到所有Controller
+            boolean foundControllers = scanControllersFromAnnotations(endpoints);
+            
+            if (foundControllers) {
+                return true;
+            }
+            
+            // 如果注解搜索失败，尝试通过Spring配置文件找到Bean定义
+            return scanControllersFromSpringConfigs(endpoints);
+            
+        } catch (Exception e) {
+            // 如果出现异常，返回false以回退到文件解析
+            System.err.println("Failed to scan from Spring annotations: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 通过注解搜索获取Controller
+     */
+    private boolean scanControllersFromAnnotations(List<RestfulEndpointNavigationItem> endpoints) {
+        try {
+            GlobalSearchScope scope = GlobalSearchScope.projectScope(project);
+            
+            // 搜索@RestController注解的类
+            Collection<PsiClass> restControllers = findClassesByAnnotation("org.springframework.web.bind.annotation.RestController", scope);
+            for (PsiClass controllerClass : restControllers) {
+                scanControllerFromSpringBean(controllerClass, endpoints);
+            }
+            
+            // 搜索@Controller注解的类
+            Collection<PsiClass> controllers = findClassesByAnnotation("org.springframework.stereotype.Controller", scope);
+            for (PsiClass controllerClass : controllers) {
+                if (hasRequestMappingMethods(controllerClass)) {
+                    scanControllerFromSpringBean(controllerClass, endpoints);
+                }
+            }
+            
+            return !endpoints.isEmpty();
+        } catch (Exception e) {
+            System.err.println("Failed to scan controllers from annotations: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 通过Spring配置文件搜索Controller
+     */
+    private boolean scanControllersFromSpringConfigs(List<RestfulEndpointNavigationItem> endpoints) {
+        try {
+            // 这里可以尝试搜索Spring XML配置文件或@Configuration类
+            // 目前先返回false，因为大多数情况下注解扫描已经够用
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 根据注解名称查找类
+     */
+    private Collection<PsiClass> findClassesByAnnotation(String annotationName, GlobalSearchScope scope) {
+        List<PsiClass> classes = new ArrayList<>();
+        
+        try {
+            // 通过文件扫描查找有指定注解的类
+            FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, scope);
+
+            for (VirtualFile virtualFile : javaFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (psiFile instanceof PsiJavaFile) {
+                    PsiClass[] fileClasses = ((PsiJavaFile) psiFile).getClasses();
+                    for (PsiClass psiClass : fileClasses) {
+                        if (hasAnnotation(psiClass, annotationName)) {
+                            classes.add(psiClass);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error finding classes by annotation: " + e.getMessage());
+        }
+        
+        return classes;
+    }
+
+    /**
+     * 检查类是否有指定注解
+     */
+    private boolean hasAnnotation(PsiClass psiClass, String annotationName) {
+        PsiAnnotation[] annotations = psiClass.getAnnotations();
+        for (PsiAnnotation annotation : annotations) {
+            String qualifiedName = annotation.getQualifiedName();
+            if (qualifiedName != null && qualifiedName.equals(annotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 检查类是否有RequestMapping相关的方法
+     */
+    private boolean hasRequestMappingMethods(PsiClass psiClass) {
+        PsiMethod[] methods = psiClass.getMethods();
+        for (PsiMethod method : methods) {
+            PsiAnnotation[] annotations = method.getAnnotations();
+            for (PsiAnnotation annotation : annotations) {
+                String qualifiedName = annotation.getQualifiedName();
+                if (qualifiedName != null && 
+                    (qualifiedName.contains("Mapping") || qualifiedName.contains("GET") || 
+                     qualifiedName.contains("POST") || qualifiedName.contains("PUT") || 
+                     qualifiedName.contains("DELETE"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 判断类是否是REST Controller
+     */
+    private boolean isRestController(PsiClass psiClass) {
+        if (psiClass == null) return false;
+        
+        PsiAnnotation[] annotations = psiClass.getAnnotations();
+        for (PsiAnnotation annotation : annotations) {
+            String qualifiedName = annotation.getQualifiedName();
+            if (qualifiedName != null && 
+                (qualifiedName.endsWith("RestController") || 
+                 qualifiedName.endsWith("Controller") ||
+                 qualifiedName.endsWith("RequestMapping"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 从Spring Bean扫描Controller端点
+     */
+    private void scanControllerFromSpringBean(PsiClass controllerClass, List<RestfulEndpointNavigationItem> endpoints) {
+        String classLevelPath = extractClassLevelPath(controllerClass);
+        scanMethodsForEndpoints(controllerClass, classLevelPath, endpoints);
+    }
+
+    /**
+     * 去重端点列表
+     */
+    private List<RestfulEndpointNavigationItem> deduplicateEndpoints(List<RestfulEndpointNavigationItem> endpoints) {
+        Map<String, RestfulEndpointNavigationItem> uniqueEndpoints = new LinkedHashMap<>();
+        
+        for (RestfulEndpointNavigationItem endpoint : endpoints) {
+            String key = endpoint.getHttpMethod() + ":" + endpoint.getPath() + ":" + 
+                        endpoint.getClassName() + "." + endpoint.getMethodName();
+            uniqueEndpoints.put(key, endpoint);
+        }
+        
+        return new ArrayList<>(uniqueEndpoints.values());
     }
 
     /**
