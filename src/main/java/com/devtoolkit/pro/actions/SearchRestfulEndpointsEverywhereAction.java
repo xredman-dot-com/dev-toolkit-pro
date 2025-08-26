@@ -27,23 +27,24 @@ public class SearchRestfulEndpointsEverywhereAction extends AnAction {
         LOG.info("Triggering Search Everywhere for Restful Endpoints");
 
         try {
-            // 打开Search Everywhere对话框，使用默认的"All"标签页
+            // 打开Search Everywhere对话框并直接定位到Restful Endpoints标签页
             SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
             if (manager != null) {
-                // 使用"SearchEverywhereContributor.All"作为默认标签页ID
-                manager.show("SearchEverywhereContributor.All", "", e);
-                LOG.info("Successfully opened Search Everywhere dialog with All tab");
+                // 使用正确的贡献者ID来直接打开Restful Endpoints标签页
+                manager.show("DevToolkitPro.RestfulEndpoints", "", e);
+                LOG.info("Successfully opened Search Everywhere dialog with Restful Endpoints tab");
                 return;
             } else {
                 LOG.warn("SearchEverywhereManager is null");
             }
         } catch (Exception ex) {
-            LOG.error("Error showing Search Everywhere", ex);
-            // 如果出错，尝试使用更简单的方式
+            LOG.error("Error showing Search Everywhere with Restful Endpoints tab", ex);
+            // 如果出错，尝试使用默认的All标签页作为回退
             try {
                 SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
                 if (manager != null) {
                     manager.show("All", "", e);
+                    LOG.info("Fallback: opened Search Everywhere with All tab");
                 }
             } catch (Exception fallbackEx) {
                 LOG.error("Fallback also failed", fallbackEx);
