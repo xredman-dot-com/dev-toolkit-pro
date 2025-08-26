@@ -187,17 +187,76 @@ public class FastApiEndpointScanStrategy implements RestfulEndpointScanStrategy,
     @Override
     public boolean isApplicable(Project project) {
         try {
-            // 检查是否有Python支持
-            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
-            if (pythonFileType == null || "UNKNOWN".equals(pythonFileType.getName())) {
-                return false; // 没有Python支持，不适用
+            // 方法1: 检查是否在PyCharm中
+            if (isPyCharmEnvironment()) {
+                return hasFastApiDependencies(project) || hasFastApiImports(project);
             }
             
-            // 检查项目中是否存在FastAPI相关的依赖或导入
-            return hasFastApiDependencies(project) || hasFastApiImports(project);
+            // 方法2: 在IntelliJ IDEA中检查Python插件是否可用
+            if (isPythonPluginAvailable()) {
+                return hasFastApiDependencies(project) || hasFastApiImports(project);
+            }
+            
+            // 方法3: 基础文件检查（作为回退方案）
+            return hasBasicPythonFiles(project) && (hasFastApiDependencies(project) || hasFastApiImports(project));
+            
         } catch (Exception e) {
-            // 如果出现异常（如Python插件不可用），返回false
-            System.err.println("FastAPI strategy not applicable: " + e.getMessage());
+            // 如果出现异常，使用回退检查
+            System.err.println("FastAPI strategy applicability check failed: " + e.getMessage());
+            return hasBasicPythonFiles(project);
+        }
+    }
+    
+    /**
+     * 检查是否在PyCharm环境中
+     */
+    private boolean isPyCharmEnvironment() {
+        try {
+            String ideaProduct = System.getProperty("idea.platform.prefix");
+            return "PyCharmCore".equals(ideaProduct) || "PyCharm".equals(ideaProduct);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 检查Python插件是否可用
+     */
+    private boolean isPythonPluginAvailable() {
+        try {
+            // 检查是否有Python文件类型支持
+            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
+            if (pythonFileType == null || "UNKNOWN".equals(pythonFileType.getName())) {
+                return false;
+            }
+            
+            // 进一步检查Python PSI支持
+            try {
+                Class.forName("com.jetbrains.python.psi.PyFile");
+                return true;
+            } catch (ClassNotFoundException e) {
+                // Python插件不可用，但可以使用文本解析
+                return true;  // 返回true以支持文本解析模式
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 基础Python文件检查（作为回退方案）
+     */
+    private boolean hasBasicPythonFiles(Project project) {
+        try {
+            FileType pythonFileType = FileTypeManager.getInstance().getFileTypeByExtension("py");
+            if (pythonFileType == null) {
+                return false;
+            }
+            return FileTypeIndex.containsFileOfType(
+                pythonFileType, 
+                GlobalSearchScope.projectScope(project)
+            );
+        } catch (Exception e) {
             return false;
         }
     }

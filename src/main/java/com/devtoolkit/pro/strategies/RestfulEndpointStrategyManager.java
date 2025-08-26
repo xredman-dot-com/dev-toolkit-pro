@@ -31,6 +31,10 @@ public class RestfulEndpointStrategyManager {
     private List<RestfulEndpointScanStrategy> initializeStrategies() {
         List<RestfulEndpointScanStrategy> strategyList = new ArrayList<>();
         
+        // 检查IDE环境
+        String ideEnvironment = detectIDEEnvironment();
+        System.out.println("Detected IDE environment: " + ideEnvironment);
+        
         // 始终添加FastAPI策略（支持所有IDE）
         strategyList.add(new FastApiEndpointScanStrategy());
         
@@ -40,7 +44,7 @@ public class RestfulEndpointStrategyManager {
             strategyList.add(new JaxRsEndpointScanStrategy());
             System.out.println("Java module available, loaded Spring and JAX-RS strategies");
         } else {
-            System.out.println("Java module not available, skipping Java-specific strategies");
+            System.out.println("Java module not available, skipping Java-specific strategies (" + ideEnvironment + " mode)");
         }
         
         // 按优先级排序（数值越小优先级越高）
@@ -65,6 +69,24 @@ public class RestfulEndpointStrategyManager {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+    
+    /**
+     * 检测IDE环境
+     */
+    private String detectIDEEnvironment() {
+        try {
+            String ideaProduct = System.getProperty("idea.platform.prefix");
+            if ("PyCharmCore".equals(ideaProduct) || "PyCharm".equals(ideaProduct)) {
+                return "PyCharm";
+            } else if ("Idea".equals(ideaProduct) || ideaProduct == null) {
+                return "IntelliJ IDEA";
+            } else {
+                return ideaProduct != null ? ideaProduct : "Unknown";
+            }
+        } catch (Exception e) {
+            return "Unknown";
         }
     }
     

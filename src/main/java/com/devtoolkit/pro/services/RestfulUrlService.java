@@ -77,28 +77,74 @@ public class RestfulUrlService {
      * 扫描Java文件中的RESTful注解
      */
     private void scanJavaFiles(Set<String> urls) {
-        FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
-        Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
-            GlobalSearchScope.projectScope(project));
+        // 检查Java支持是否可用
+        if (!isJavaModuleAvailable()) {
+            System.out.println("Java module not available, skipping Java file scanning");
+            return;
+        }
+        
+        try {
+            FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
+                GlobalSearchScope.projectScope(project));
 
-        for (VirtualFile virtualFile : javaFiles) {
-            PsiFile psiFile = psiManager.findFile(virtualFile);
-            if (psiFile instanceof PsiJavaFile) {
-                scanJavaFile((PsiJavaFile) psiFile, urls);
+            for (VirtualFile virtualFile : javaFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (isJavaFile(psiFile)) {
+                    scanJavaFileWithReflection(psiFile, urls);
+                }
             }
+        } catch (Exception e) {
+            System.err.println("Error scanning Java files: " + e.getMessage());
         }
     }
 
     /**
-     * 扫描单个Java文件
+     * 检查Java模块是否可用
      */
-    private void scanJavaFile(PsiJavaFile javaFile, Set<String> urls) {
-        PsiClass[] classes = javaFile.getClasses();
-        
-        for (PsiClass psiClass : classes) {
-            String classLevelPath = extractClassLevelPath(psiClass);
-            scanMethods(psiClass, classLevelPath, urls);
+    private boolean isJavaModuleAvailable() {
+        try {
+            // 尝试加载PsiJavaFile类
+            Class.forName("com.intellij.psi.PsiJavaFile");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
+    }
+    
+    /**
+     * 检查文件是否是Java文件（不使用instanceof PsiJavaFile）
+     */
+    private boolean isJavaFile(PsiFile psiFile) {
+        if (psiFile == null) return false;
+        return psiFile.getClass().getSimpleName().equals("PsiJavaFileImpl") ||
+               psiFile.getFileType().getName().equals("JAVA");
+    }
+    
+    /**
+     * 使用反射方式扫描Java文件
+     */
+    private void scanJavaFileWithReflection(PsiFile javaFile, Set<String> urls) {
+        try {
+            // 通过反射获取classes
+            Object[] classes = (Object[]) javaFile.getClass().getMethod("getClasses").invoke(javaFile);
+            
+            for (Object classObj : classes) {
+                PsiClass psiClass = (PsiClass) classObj;
+                String classLevelPath = extractClassLevelPath(psiClass);
+                scanMethods(psiClass, classLevelPath, urls);
+            }
+        } catch (Exception e) {
+            System.err.println("Error scanning Java file with reflection: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 扫描单个Java文件（已弃用，保留向后兼容性）
+     */
+    @Deprecated
+    private void scanJavaFile(Object javaFile, Set<String> urls) {
+        // 此方法保留向后兼容性，实际功能已移至scanJavaFileWithReflection
     }
 
     /**
@@ -357,6 +403,11 @@ public class RestfulUrlService {
     private Collection<PsiClass> findClassesByAnnotation(String annotationName, GlobalSearchScope scope) {
         List<PsiClass> classes = new ArrayList<>();
         
+        // 如果Java模块不可用，返回空列表
+        if (!isJavaModuleAvailable()) {
+            return classes;
+        }
+        
         try {
             // 通过文件扫描查找有指定注解的类
             FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
@@ -364,12 +415,19 @@ public class RestfulUrlService {
 
             for (VirtualFile virtualFile : javaFiles) {
                 PsiFile psiFile = psiManager.findFile(virtualFile);
-                if (psiFile instanceof PsiJavaFile) {
-                    PsiClass[] fileClasses = ((PsiJavaFile) psiFile).getClasses();
-                    for (PsiClass psiClass : fileClasses) {
-                        if (hasAnnotation(psiClass, annotationName)) {
-                            classes.add(psiClass);
+                if (isJavaFile(psiFile)) {
+                    try {
+                        // 使用反射获取类
+                        Object[] fileClasses = (Object[]) psiFile.getClass().getMethod("getClasses").invoke(psiFile);
+                        for (Object classObj : fileClasses) {
+                            PsiClass psiClass = (PsiClass) classObj;
+                            if (hasAnnotation(psiClass, annotationName)) {
+                                classes.add(psiClass);
+                            }
                         }
+                    } catch (Exception ex) {
+                        // 反射调用失败，跳过这个文件
+                        continue;
                     }
                 }
             }
@@ -460,28 +518,52 @@ public class RestfulUrlService {
      * 扫描Java文件中的RESTful注解并生成NavigationItem
      */
     private void scanJavaFilesForEndpoints(List<RestfulEndpointNavigationItem> endpoints) {
-        FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
-        Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
-            GlobalSearchScope.projectScope(project));
+        // 如果Java模块不可用，跳过Java文件扫描
+        if (!isJavaModuleAvailable()) {
+            System.out.println("Java module not available, skipping Java file scanning for endpoints");
+            return;
+        }
+        
+        try {
+            FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
+                GlobalSearchScope.projectScope(project));
 
-        for (VirtualFile virtualFile : javaFiles) {
-            PsiFile psiFile = psiManager.findFile(virtualFile);
-            if (psiFile instanceof PsiJavaFile) {
-                scanJavaFileForEndpoints((PsiJavaFile) psiFile, endpoints);
+            for (VirtualFile virtualFile : javaFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (isJavaFile(psiFile)) {
+                    scanJavaFileForEndpointsWithReflection(psiFile, endpoints);
+                }
             }
+        } catch (Exception e) {
+            System.err.println("Error scanning Java files for endpoints: " + e.getMessage());
         }
     }
 
     /**
-     * 扫描单个Java文件并生成端点
+     * 使用反射方式扫描Java文件并生成端点
      */
-    private void scanJavaFileForEndpoints(PsiJavaFile javaFile, List<RestfulEndpointNavigationItem> endpoints) {
-        PsiClass[] classes = javaFile.getClasses();
-        
-        for (PsiClass psiClass : classes) {
-            String classLevelPath = extractClassLevelPath(psiClass);
-            scanMethodsForEndpoints(psiClass, classLevelPath, endpoints);
+    private void scanJavaFileForEndpointsWithReflection(PsiFile javaFile, List<RestfulEndpointNavigationItem> endpoints) {
+        try {
+            // 通过反射获取classes
+            Object[] classes = (Object[]) javaFile.getClass().getMethod("getClasses").invoke(javaFile);
+            
+            for (Object classObj : classes) {
+                PsiClass psiClass = (PsiClass) classObj;
+                String classLevelPath = extractClassLevelPath(psiClass);
+                scanMethodsForEndpoints(psiClass, classLevelPath, endpoints);
+            }
+        } catch (Exception e) {
+            System.err.println("Error scanning Java file for endpoints with reflection: " + e.getMessage());
         }
+    }
+    
+    /**
+     * 扫描单个Java文件并生成端点（已弃用，保留向后兼容性）
+     */
+    @Deprecated
+    private void scanJavaFileForEndpoints(Object javaFile, List<RestfulEndpointNavigationItem> endpoints) {
+        // 此方法保留向后兼容性，实际功能已移至scanJavaFileForEndpointsWithReflection
     }
 
     /**
@@ -550,21 +632,38 @@ public class RestfulUrlService {
      * 根据类名查找PsiClass
      */
     private PsiClass findClassByName(String className) {
-        FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
-        Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
-            GlobalSearchScope.projectScope(project));
+        // 如果Java模块不可用，返回null
+        if (!isJavaModuleAvailable()) {
+            return null;
+        }
+        
+        try {
+            FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
+                GlobalSearchScope.projectScope(project));
 
-        for (VirtualFile virtualFile : javaFiles) {
-            PsiFile psiFile = psiManager.findFile(virtualFile);
-            if (psiFile instanceof PsiJavaFile) {
-                PsiClass[] classes = ((PsiJavaFile) psiFile).getClasses();
-                for (PsiClass psiClass : classes) {
-                    if (className.equals(psiClass.getName())) {
-                        return psiClass;
+            for (VirtualFile virtualFile : javaFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (isJavaFile(psiFile)) {
+                    try {
+                        // 使用反射获取类
+                        Object[] classes = (Object[]) psiFile.getClass().getMethod("getClasses").invoke(psiFile);
+                        for (Object classObj : classes) {
+                            PsiClass psiClass = (PsiClass) classObj;
+                            if (className.equals(psiClass.getName())) {
+                                return psiClass;
+                            }
+                        }
+                    } catch (Exception ex) {
+                        // 反射调用失败，跳过这个文件
+                        continue;
                     }
                 }
             }
+        } catch (Exception e) {
+            System.err.println("Error finding class by name: " + e.getMessage());
         }
+        
         return null;
     }
 

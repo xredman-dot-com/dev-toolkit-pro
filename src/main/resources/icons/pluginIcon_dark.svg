@@ -1,21 +1,41 @@
 <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="darkBgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8B5A9F;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#2C5F6F;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1E3A5F;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="darkCat1Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#F5F5F5;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#E0E0E0;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="darkCat2Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFFAF0;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#F0F8FF;stop-opacity:1" />
-    </linearGradient>
-  </defs>
+  <!-- 简洁的背景圆形（深色主题） -->
+  <circle cx="8" cy="8" r="7" fill="#404040" stroke="#606060" stroke-width="1"/>
   
-  <!-- Background circle -->
+  <!-- 猫咪头部 -->
+  <circle cx="8" cy="8.5" r="4.5" fill="#E5E5E5" stroke="#D0D0D0" stroke-width="1"/>
+  
+  <!-- 猫耳朵 -->
+  <polygon points="5.5,5 6.5,3 7.5,5" fill="#E5E5E5" stroke="#D0D0D0" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="8.5,5 9.5,3 10.5,5" fill="#E5E5E5" stroke="#D0D0D0" stroke-width="1" stroke-linejoin="round"/>
+  
+  <!-- 耳朵内部 -->
+  <polygon points="6,4.5 6.5,3.5 7,4.5" fill="#FFA0B4" stroke="none"/>
+  <polygon points="9,4.5 9.5,3.5 10,4.5" fill="#FFA0B4" stroke="none"/>
+  
+  <!-- 眼睛 -->
+  <circle cx="6.5" cy="7.5" r="0.8" fill="#2D2D2D"/>
+  <circle cx="9.5" cy="7.5" r="0.8" fill="#2D2D2D"/>
+  
+  <!-- 眼睛高光 -->
+  <circle cx="6.7" cy="7.3" r="0.3" fill="#F0F0F0"/>
+  <circle cx="9.7" cy="7.3" r="0.3" fill="#F0F0F0"/>
+  
+  <!-- 鼻子 -->
+  <polygon points="8,9 7.5,9.5 8.5,9.5" fill="#FF6B9D" stroke="none"/>
+  
+  <!-- 嘴巴 -->
+  <path d="M 7,10 Q 8,10.5 9,10" stroke="#2D2D2D" stroke-width="1" fill="none" stroke-linecap="round"/>
+  
+  <!-- 胡须 -->
+  <line x1="4.5" y1="8" x2="6" y2="7.8" stroke="#2D2D2D" stroke-width="0.7" stroke-linecap="round"/>
+  <line x1="4.5" y1="9" x2="6" y2="9" stroke="#2D2D2D" stroke-width="0.7" stroke-linecap="round"/>
+  <line x1="10" y1="7.8" x2="11.5" y2="8" stroke="#2D2D2D" stroke-width="0.7" stroke-linecap="round"/>
+  <line x1="10" y1="9" x2="11.5" y2="9" stroke="#2D2D2D" stroke-width="0.7" stroke-linecap="round"/>
+  
+  <!-- 代码标识 -->
+  <text x="8" y="14" font-family="monospace" font-size="2.5" fill="#E5E5E5" text-anchor="middle" font-weight="bold">&lt;/&gt;</text>
+</svg>
   <circle cx="8" cy="8" r="7.5" fill="url(#darkBgGradient)" stroke="#555" stroke-width="0.5"/>
   
   <!-- Left cat (silver) -->

@@ -1,14 +1,15 @@
 package com.devtoolkit.pro.actions;
 
-import com.devtoolkit.pro.ui.SearchDialog;
+import com.intellij.ide.actions.SearchEverywhereAction;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * 全局RESTful URL搜索动作
- * 通过快捷键触发模糊搜索对话框
+ * 通过快捷键触发系统搜索对话框显示RESTful端点
  */
 public class SearchRestfulUrlsAction extends AnAction {
 
@@ -19,9 +20,13 @@ public class SearchRestfulUrlsAction extends AnAction {
             return;
         }
 
-        // 创建并显示搜索对话框
-        SearchDialog dialog = new SearchDialog(project);
-        dialog.show();
+        // 触发系统的"Search Everywhere"功能
+        // 这将显示包含我们的RESTful端点的搜索对话框
+        ActionManager actionManager = ActionManager.getInstance();
+        AnAction searchEverywhereAction = actionManager.getAction("SearchEverywhere");
+        if (searchEverywhereAction != null) {
+            searchEverywhereAction.actionPerformed(e);
+        }
     }
 
     @Override

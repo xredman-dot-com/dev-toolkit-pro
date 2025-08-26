@@ -1,87 +1,38 @@
 <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FF6B9D;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#4ECDC4;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#45B7D1;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="cat1Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFE4E1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FFC0CB;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="cat2Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#E6F3FF;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#B3D9FF;stop-opacity:1" />
-    </linearGradient>
-  </defs>
+  <!-- 简洁的背景圆形 -->
+  <circle cx="8" cy="8" r="7" fill="#6B7FFF" stroke="#4A5BCC" stroke-width="1"/>
   
-  <!-- Background circle -->
-  <circle cx="8" cy="8" r="7.5" fill="url(#bgGradient)" stroke="#fff" stroke-width="0.5"/>
+  <!-- 猫咪头部 -->
+  <circle cx="8" cy="8.5" r="4.5" fill="#FFFFFF" stroke="#333" stroke-width="1"/>
   
-  <!-- Left cat (pink) -->
-  <g transform="translate(3,4)">
-    <!-- Cat body -->
-    <ellipse cx="2" cy="3" rx="1.8" ry="2.2" fill="url(#cat1Gradient)" stroke="#FF69B4" stroke-width="0.2"/>
-    <!-- Cat head -->
-    <circle cx="2" cy="1.5" r="1.3" fill="url(#cat1Gradient)" stroke="#FF69B4" stroke-width="0.2"/>
-    <!-- Cat ears -->
-    <polygon points="1,0.5 1.5,0 2,0.5" fill="url(#cat1Gradient)" stroke="#FF69B4" stroke-width="0.1"/>
-    <polygon points="2,0.5 2.5,0 3,0.5" fill="url(#cat1Gradient)" stroke="#FF69B4" stroke-width="0.1"/>
-    <!-- Inner ears -->
-    <polygon points="1.2,0.4 1.5,0.2 1.8,0.4" fill="#FFB6C1"/>
-    <polygon points="2.2,0.4 2.5,0.2 2.8,0.4" fill="#FFB6C1"/>
-    <!-- Eyes -->
-    <circle cx="1.5" cy="1.3" r="0.25" fill="#333"/>
-    <circle cx="2.5" cy="1.3" r="0.25" fill="#333"/>
-    <circle cx="1.55" cy="1.25" r="0.08" fill="#fff"/>
-    <circle cx="2.55" cy="1.25" r="0.08" fill="#fff"/>
-    <!-- Nose -->
-    <polygon points="2,1.6 1.9,1.8 2.1,1.8" fill="#FF1493"/>
-    <!-- Mouth -->
-    <path d="M 1.8,1.9 Q 2,2.1 2.2,1.9" stroke="#333" stroke-width="0.1" fill="none"/>
-    <!-- Whiskers -->
-    <line x1="0.8" y1="1.5" x2="1.3" y2="1.4" stroke="#333" stroke-width="0.08"/>
-    <line x1="0.8" y1="1.7" x2="1.3" y2="1.6" stroke="#333" stroke-width="0.08"/>
-    <line x1="2.7" y1="1.4" x2="3.2" y2="1.5" stroke="#333" stroke-width="0.08"/>
-    <line x1="2.7" y1="1.6" x2="3.2" y2="1.7" stroke="#333" stroke-width="0.08"/>
-    <!-- Tail -->
-    <path d="M 0.5,4 Q -0.5,3 0,2" stroke="#FF69B4" stroke-width="0.4" fill="none" stroke-linecap="round"/>
-  </g>
+  <!-- 猫耳朵 -->
+  <polygon points="5.5,5 6.5,3 7.5,5" fill="#FFFFFF" stroke="#333" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="8.5,5 9.5,3 10.5,5" fill="#FFFFFF" stroke="#333" stroke-width="1" stroke-linejoin="round"/>
   
-  <!-- Right cat (blue) -->
-  <g transform="translate(7,4)">
-    <!-- Cat body -->
-    <ellipse cx="2" cy="3" rx="1.8" ry="2.2" fill="url(#cat2Gradient)" stroke="#4682B4" stroke-width="0.2"/>
-    <!-- Cat head -->
-    <circle cx="2" cy="1.5" r="1.3" fill="url(#cat2Gradient)" stroke="#4682B4" stroke-width="0.2"/>
-    <!-- Cat ears -->
-    <polygon points="1,0.5 1.5,0 2,0.5" fill="url(#cat2Gradient)" stroke="#4682B4" stroke-width="0.1"/>
-    <polygon points="2,0.5 2.5,0 3,0.5" fill="url(#cat2Gradient)" stroke="#4682B4" stroke-width="0.1"/>
-    <!-- Inner ears -->
-    <polygon points="1.2,0.4 1.5,0.2 1.8,0.4" fill="#ADD8E6"/>
-    <polygon points="2.2,0.4 2.5,0.2 2.8,0.4" fill="#ADD8E6"/>
-    <!-- Eyes -->
-    <circle cx="1.5" cy="1.3" r="0.25" fill="#333"/>
-    <circle cx="2.5" cy="1.3" r="0.25" fill="#333"/>
-    <circle cx="1.55" cy="1.25" r="0.08" fill="#fff"/>
-    <circle cx="2.55" cy="1.25" r="0.08" fill="#fff"/>
-    <!-- Nose -->
-    <polygon points="2,1.6 1.9,1.8 2.1,1.8" fill="#4169E1"/>
-    <!-- Mouth -->
-    <path d="M 1.8,1.9 Q 2,2.1 2.2,1.9" stroke="#333" stroke-width="0.1" fill="none"/>
-    <!-- Whiskers -->
-    <line x1="0.8" y1="1.5" x2="1.3" y2="1.4" stroke="#333" stroke-width="0.08"/>
-    <line x1="0.8" y1="1.7" x2="1.3" y2="1.6" stroke="#333" stroke-width="0.08"/>
-    <line x1="2.7" y1="1.4" x2="3.2" y2="1.5" stroke="#333" stroke-width="0.08"/>
-    <line x1="2.7" y1="1.6" x2="3.2" y2="1.7" stroke="#333" stroke-width="0.08"/>
-    <!-- Tail -->
-    <path d="M 3.5,4 Q 4.5,3 4,2" stroke="#4682B4" stroke-width="0.4" fill="none" stroke-linecap="round"/>
-  </g>
+  <!-- 耳朵内部 -->
+  <polygon points="6,4.5 6.5,3.5 7,4.5" fill="#FFB6C1" stroke="none"/>
+  <polygon points="9,4.5 9.5,3.5 10,4.5" fill="#FFB6C1" stroke="none"/>
   
-  <!-- Code symbols around cats -->
-  <text x="2" y="13" font-family="monospace" font-size="1.8" fill="#fff" text-anchor="middle" font-weight="bold">&lt;/&gt;</text>
-  <text x="14" y="13" font-family="monospace" font-size="1.8" fill="#fff" text-anchor="middle" font-weight="bold">API</text>
+  <!-- 眼睛 -->
+  <circle cx="6.5" cy="7.5" r="0.8" fill="#333"/>
+  <circle cx="9.5" cy="7.5" r="0.8" fill="#333"/>
   
-  <!-- Small hearts -->
-  <path d="M 8,2.5 Q 7.5,2 7,2.5 Q 7.5,3 8,2.5 Q 8.5,3 9,2.5 Q 8.5,2 8,2.5" fill="#FF69B4" opacity="0.8"/>
+  <!-- 眼睛高光 -->
+  <circle cx="6.7" cy="7.3" r="0.3" fill="#FFFFFF"/>
+  <circle cx="9.7" cy="7.3" r="0.3" fill="#FFFFFF"/>
+  
+  <!-- 鼻子 -->
+  <polygon points="8,9 7.5,9.5 8.5,9.5" fill="#FF69B4" stroke="none"/>
+  
+  <!-- 嘴巴 -->
+  <path d="M 7,10 Q 8,10.5 9,10" stroke="#333" stroke-width="1" fill="none" stroke-linecap="round"/>
+  
+  <!-- 胡须 -->
+  <line x1="4.5" y1="8" x2="6" y2="7.8" stroke="#333" stroke-width="0.7" stroke-linecap="round"/>
+  <line x1="4.5" y1="9" x2="6" y2="9" stroke="#333" stroke-width="0.7" stroke-linecap="round"/>
+  <line x1="10" y1="7.8" x2="11.5" y2="8" stroke="#333" stroke-width="0.7" stroke-linecap="round"/>
+  <line x1="10" y1="9" x2="11.5" y2="9" stroke="#333" stroke-width="0.7" stroke-linecap="round"/>
+  
+  <!-- 代码标识 -->
+  <text x="8" y="14" font-family="monospace" font-size="2.5" fill="#FFFFFF" text-anchor="middle" font-weight="bold">&lt;/&gt;</text>
 </svg>

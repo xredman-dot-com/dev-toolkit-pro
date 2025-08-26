@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
-    id("org.jetbrains.intellij") version "1.17.4"  // 保持当前版本暂时兼容
+    id("org.jetbrains.intellij") version "1.17.4"  // 使用最新版本
 }
 
 // 配置Java工具链使用JDK 21，但编译目标为17以兼容IntelliJ IDEA 2023.2
@@ -12,7 +12,7 @@ java {
 }
 
 group = "com.devtoolkit"
-version = "1.0.1"  // 更新版本号以支持最新IDE版本
+version = "1.0.4"  // 添加Restful Endpoints系统搜索标签页
 
 repositories {
     mavenCentral()
@@ -27,11 +27,11 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 
-// Configure Gradle IntelliJ Plugin - 使用兼容的版本配置
+// Configure Gradle IntelliJ Plugin - 兼容多IDE环境
 intellij {
-    version.set("2023.3")  // 使用与Plugin 1.x兼容的版本
-    type.set("IC") // IntelliJ IDEA Community Edition
-    plugins.set(listOf("java", "Git4Idea"))
+    version.set("2023.3")  // 使用稳定版本避免兼容性问题
+    type.set("IC") // 使用Community Edition作为基础
+    plugins.set(listOf("java", "Git4Idea"))  // 基础插件，Python支持通过运行时检测
 }
 
 tasks {

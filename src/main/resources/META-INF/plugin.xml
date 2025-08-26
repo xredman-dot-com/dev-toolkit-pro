@@ -22,6 +22,30 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>Version 1.0.4</h3>
+    <ul>
+        <li>添加"Restful Endpoints"系统搜索标签页，集成到IntelliJ IDEA的Search Everywhere对话框</li>
+        <li>优化搜索体验，不再使用自定义弹窗，直接集成到系统搜索中</li>
+        <li>支持模糊搜索RESTful端点，提供更直观的搜索界面</li>
+        <li>添加端点图标显示，根据HTTP方法显示不同的图标</li>
+        <li>保持对原有ChooseByNameContributor的支持，确保向后兼容</li>
+    </ul>
+    <h3>Version 1.0.3</h3>
+    <ul>
+        <li>修复PyCharm中的NoClassDefFoundError: com/intellij/psi/PsiJavaFile错误</li>
+        <li>添加Java模块运行时检测，确保在PyCharm中无Java支持时也能正常工作</li>
+        <li>优化IDE环境检测和兼容性处理，提升跨IDE稳定性</li>
+        <li>使用反射机制访问Java PSI类，避免硬依赖导致的加载错误</li>
+        <li>完善错误处理机制，提升插件鲁棒性</li>
+    </ul>
+    <h3>Version 1.0.2</h3>
+    <ul>
+        <li>升级支持IntelliJ IDEA 2024.3和PyCharm 2024.3</li>
+        <li>修复RESTful API检索功能在最新版本中不可见的问题</li>
+        <li>修复Git链接复制功能在编辑器右键菜单中不显示的问题</li>
+        <li>增强FastAPI端点扫描在PyCharm中的兼容性</li>
+        <li>优化系统搜索集成，提升端点显示的稳定性</li>
+    </ul>
     <h3>Version 1.0.1</h3>
     <ul>
         <li>Updated compatibility for IntelliJ IDEA 2024.x and 2025.x</li>
@@ -43,12 +67,15 @@
     <!-- Product and plugin compatibility requirements -->
     <depends>com.intellij.modules.platform</depends>
     <depends optional="true" config-file="java-features.xml">com.intellij.modules.java</depends>
+    <depends optional="true">com.intellij.modules.python</depends>
     <depends>Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- RESTful Endpoints Contributor for Choose by Name dialog -->
-        <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"
-                                displayName="Dev Toolkit Pro Endpoints"/>
+        <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"/>
+        
+        <!-- RESTful Endpoints Contributor for Search Everywhere dialog -->
+        <searchEverywhereContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointSearchEverywhereContributor$Factory"/>
     </extensions>
 
     <actions>
