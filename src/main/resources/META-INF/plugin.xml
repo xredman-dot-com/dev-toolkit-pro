@@ -9,6 +9,8 @@
     Features:
     - Global fuzzy search for RESTful URLs with keyboard shortcuts
     - Quick navigation to API endpoints
+    - Git repository integration with GitHub/GitLab link copying
+    - Copy Git links for current file/line with precision
     - Enhanced development workflow
     ]]></description>
 
@@ -18,12 +20,16 @@
         <li>Initial release</li>
         <li>Global fuzzy search for RESTful URLs</li>
         <li>Keyboard shortcut support</li>
+        <li>Git repository integration</li>
+        <li>GitHub/GitLab link copying from editor</li>
+        <li>Line-precise Git link generation</li>
     </ul>
     ]]></change-notes>
 
     <!-- Product and plugin compatibility requirements -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
+    <depends>Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- RESTful Endpoints Contributor for Choose by Name dialog -->
@@ -40,10 +46,24 @@
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="cmd shift R"/>
         </action>
         
+        <!-- Copy Editor Git Link Action -->
+        <action id="DevToolkitPro.CopyEditorGitLink" 
+                class="com.devtoolkit.pro.actions.CopyEditorGitLinkAction" 
+                text="Copy Git Link" 
+                description="Copy GitHub/GitLab link for current file/line">
+            <!-- 编辑器中的Git链接复制功能 -->
+        </action>
+        
         <!-- Add action to Tools menu -->
         <group id="DevToolkitPro.ToolsMenu" text="Dev Toolkit Pro" description="Dev Toolkit Pro actions">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <reference ref="DevToolkitPro.SearchRestfulUrls"/>
+        </group>
+        
+        <!-- Add Git link action to editor context menu -->
+        <group id="DevToolkitPro.EditorContextMenu" text="Dev Toolkit Pro">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <reference ref="DevToolkitPro.CopyEditorGitLink"/>
         </group>
     </actions>
 </idea-plugin>

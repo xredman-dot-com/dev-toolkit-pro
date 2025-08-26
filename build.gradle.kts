@@ -19,7 +19,7 @@ dependencies {
 intellij {
     version.set("2023.2")
     type.set("IC") // IntelliJ IDEA Community Edition
-    plugins.set(listOf("java"))
+    plugins.set(listOf("java", "Git4Idea"))
 }
 
 tasks {
