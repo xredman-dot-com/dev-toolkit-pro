@@ -137,7 +137,7 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     }
 
     /**
-     * 简单的模糊匹配算法
+     * 增强的模糊匹配算法，支持查询参数匹配
      */
     private boolean matchesPattern(String text, String pattern) {
         if (pattern.isEmpty()) {
@@ -147,9 +147,32 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
         String lowerText = text.toLowerCase();
         String lowerPattern = pattern.toLowerCase();
         
-        // 包含匹配
+        // 直接包含匹配
         if (lowerText.contains(lowerPattern)) {
             return true;
+        }
+        
+        // 处理查询参数匹配：如果pattern包含查询参数，尝试匹配基础路径
+        if (lowerPattern.contains("?")) {
+            // 提取pattern中的基础路径部分（去掉查询参数）
+            String patternBasePath = lowerPattern.split("\\?")[0];
+            
+            // 从text中提取路径部分（去掉HTTP方法）
+            String textPath = extractPathFromEndpoint(lowerText);
+            
+            // 检查基础路径是否匹配
+            if (textPath.equals(patternBasePath) || textPath.contains(patternBasePath)) {
+                return true;
+            }
+        }
+        
+        // 反向匹配：如果text是基础路径，pattern包含查询参数，也应该匹配
+        String textPath = extractPathFromEndpoint(lowerText);
+        if (lowerPattern.contains("?")) {
+            String patternBasePath = lowerPattern.split("\\?")[0];
+            if (textPath.equals(patternBasePath)) {
+                return true;
+            }
         }
         
         // 模糊匹配：检查模式中的字符是否按顺序出现在文本中
@@ -161,6 +184,25 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
         }
         
         return patternIndex == lowerPattern.length();
+    }
+    
+    /**
+     * 从端点文本中提取路径部分
+     * 例如："GET /api/users" -> "/api/users"
+     */
+    private String extractPathFromEndpoint(String endpointText) {
+        if (endpointText == null || endpointText.trim().isEmpty()) {
+            return "";
+        }
+        
+        // 查找第一个空格，HTTP方法后面就是路径
+        int spaceIndex = endpointText.indexOf(' ');
+        if (spaceIndex != -1 && spaceIndex < endpointText.length() - 1) {
+            return endpointText.substring(spaceIndex + 1).trim();
+        }
+        
+        // 如果没有空格，可能整个字符串就是路径
+        return endpointText.trim();
     }
 
     /**
