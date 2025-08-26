@@ -26,20 +26,38 @@ public class SearchRestfulEndpointsEverywhereAction extends AnAction {
         LOG.info("Triggering Search Everywhere for Restful Endpoints");
 
         try {
-            // 获取SearchEverywhereManager实例
+            // 首先尝试直接使用特定ID打开
             SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
             if (manager != null) {
-                // 显示Search Everywhere对话框并尝试切换到我们的标签页
-                manager.show("RestfulEndpoints", "", e);
-                LOG.info("Successfully triggered Search Everywhere with RestfulEndpoints tab");
+                try {
+                    // 尝试使用类名ID
+                    manager.show("RestfulEndpointSearchEverywhereContributor", "", e);
+                    LOG.info("Successfully triggered Search Everywhere with class name ID");
+                    return;
+                } catch (IllegalArgumentException ex1) {
+                    LOG.warn("Class name ID failed, trying short ID: " + ex1.getMessage());
+                    try {
+                        // 尝试使用短ID
+                        manager.show("RestfulEndpoints", "", e);
+                        LOG.info("Successfully triggered Search Everywhere with short RestfulEndpoints ID");
+                        return;
+                    } catch (IllegalArgumentException ex2) {
+                        LOG.warn("Short ID also failed: " + ex2.getMessage());
+                        // 回退到All标签页
+                        manager.show("", "", e);
+                        LOG.info("Fallback: Opened Search Everywhere with All tab");
+                        return;
+                    }
+                }
             } else {
                 LOG.warn("SearchEverywhereManager is null, falling back to default search");
-                fallbackToDefaultSearch(e);
             }
         } catch (Exception ex) {
-            LOG.error("Error showing Search Everywhere with Restful Endpoints", ex);
-            fallbackToDefaultSearch(e);
+            LOG.error("Error showing Search Everywhere", ex);
         }
+        
+        // 最终回退方案
+        fallbackToDefaultSearch(e);
     }
 
     /**
