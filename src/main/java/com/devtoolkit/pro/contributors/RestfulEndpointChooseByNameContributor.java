@@ -16,6 +16,20 @@ import java.util.List;
  */
 public class RestfulEndpointChooseByNameContributor implements ChooseByNameContributor {
 
+    /**
+     * 获取显示名称 - 用于自定义标签页名称
+     */
+    public String getQualifiedName() {
+        return "Dev Toolkit Pro Endpoints";
+    }
+
+    /**
+     * 获取元素类型 - 用于自定义标签页名称
+     */
+    public String getElementKind() {
+        return "Dev Toolkit Pro Endpoints";
+    }
+
     @NotNull
     @Override
     public String[] getNames(@NotNull Project project, boolean includeNonProjectItems) {

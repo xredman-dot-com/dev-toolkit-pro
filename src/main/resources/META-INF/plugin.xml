@@ -47,7 +47,8 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- RESTful Endpoints Contributor for Choose by Name dialog -->
-        <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"/>
+        <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"
+                                displayName="Dev Toolkit Pro Endpoints"/>
     </extensions>
 
     <actions>
