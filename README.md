@@ -236,7 +236,8 @@ DELETE /api/users/{id} (UserController.deleteUser)
 
 ## 系统要求
 
-- **IntelliJ IDEA**: 2023.2 或更高版本
+- **IntelliJ IDEA**: 2023.2 或更高版本（支持2024.x, 2025.x）
+- **PyCharm**: 2023.2 或更高版本（支持2024.x, 2025.x）
 - **Java**: 21 或更高版本（推荐使用asdf管理）
 - **操作系统**: macOS、Linux、Windows
 - **开发工具**: 
@@ -246,8 +247,8 @@ DELETE /api/users/{id} (UserController.deleteUser)
 
 ## 开发信息
 
-- **版本**: 1.0.0
-- **兼容性**: IntelliJ IDEA 2023.2 - 2024.1.*
+- **版本**: 1.0.1
+- **兼容性**: IntelliJ IDEA 2023.2 - 2025.3.*, PyCharm 2023.2 - 2025.3.*
 - **开发语言**: Java + Kotlin
 - **构建工具**: Gradle 8.x
 - **Java版本**: JDK 21 (LTS)

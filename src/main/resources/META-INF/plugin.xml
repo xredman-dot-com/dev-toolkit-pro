@@ -4,7 +4,7 @@
     <vendor email="maoba@anybots.cloud" url="https://anybots.cloud">anybots.cloud</vendor>
 
     <description><![CDATA[
-    Dev Toolkit Pro is a powerful IntelliJ IDEA plugin designed to enhance developer productivity.
+    Dev Toolkit Pro is a powerful IntelliJ IDEA and PyCharm plugin designed to enhance developer productivity.
     
     Features:
     - Global fuzzy search for RESTful URLs with keyboard shortcuts
@@ -12,9 +12,23 @@
     - Git repository integration with GitHub/GitLab link copying
     - Copy Git links for current file/line with precision
     - Enhanced development workflow
+    - Compatible with IntelliJ IDEA 2023.2+ and PyCharm 2023.2+
+    - Support for latest IDE versions (2024.x, 2025.x)
+    
+    Framework Support:
+    - IntelliJ IDEA: Spring Boot, Spring MVC, JAX-RS, FastAPI
+    - PyCharm: FastAPI, Flask (coming soon)
+    - Universal: Git integration, file-based endpoint scanning
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>Version 1.0.1</h3>
+    <ul>
+        <li>Updated compatibility for IntelliJ IDEA 2024.x and 2025.x</li>
+        <li>Added support for PyCharm 2024.x and 2025.x</li>
+        <li>Enhanced plugin stability with latest IDE versions</li>
+        <li>Modern development environment support with asdf and justfile</li>
+    </ul>
     <h3>Version 1.0.0</h3>
     <ul>
         <li>Initial release</li>
@@ -28,7 +42,7 @@
 
     <!-- Product and plugin compatibility requirements -->
     <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.modules.java</depends>
+    <depends optional="true" config-file="java-features.xml">com.intellij.modules.java</depends>
     <depends>Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -42,8 +56,9 @@
                 class="com.devtoolkit.pro.actions.SearchRestfulUrlsAction" 
                 text="Search RESTful URLs" 
                 description="Global fuzzy search for RESTful URLs">
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift R"/>
-            <keyboard-shortcut keymap="Mac OS X" first-keystroke="cmd shift R"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="control shift R"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift R"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta shift R"/>
         </action>
         
         <!-- Copy Editor Git Link Action -->

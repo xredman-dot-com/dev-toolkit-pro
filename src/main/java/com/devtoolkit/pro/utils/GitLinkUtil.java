@@ -108,7 +108,7 @@ public class GitLinkUtil {
     public static GitRepoInfo getGitRepoInfo(Project project, VirtualFile file) {
         try {
             GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
-            GitRepository repo = manager.getRepositoryForFile(file);
+            GitRepository repo = GitUtil.getRepositoryForFile(project, file);
             
             if (repo == null) {
                 return null;
@@ -131,7 +131,7 @@ public class GitLinkUtil {
      */
     private static String getCurrentBranch(GitRepository repo) {
         try {
-            return repo.getCurrentBranchName();
+            return repo.getCurrentBranch() != null ? repo.getCurrentBranch().getName() : "main";
         } catch (Exception e) {
             return "main";
         }
@@ -278,22 +278,52 @@ public class GitLinkUtil {
      */
     public static String getRelativePath(Project project, VirtualFile file) {
         try {
-            GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
-            GitRepository repo = manager.getRepositoryForFile(file);
+            GitRepository repo = GitUtil.getRepositoryForFile(project, file);
             
-            if (repo == null) {
-                return null;
+            if (repo != null) {
+                // 尝试使用Git仓库根目录
+                try {
+                    // 直接使用项目根目录作为repo根目录
+                    VirtualFile projectRoot = project.getBaseDir();
+                    if (projectRoot != null) {
+                        String projectPath = projectRoot.getPath();
+                        String filePath = file.getPath();
+                        
+                        if (filePath.startsWith(projectPath)) {
+                            return filePath.substring(projectPath.length() + 1);
+                        }
+                    }
+                } catch (Exception ex) {
+                    // 如果Git方式失败，继续使用项目根目录
+                }
             }
             
-            VirtualFile repoRoot = repo.getRoot();
-            String repoPath = repoRoot.getPath();
-            String filePath = file.getPath();
-            
-            if (filePath.startsWith(repoPath)) {
-                return filePath.substring(repoPath.length() + 1);
+            // 如果git方式失败，尝试使用项目根目录
+            VirtualFile projectRoot = project.getBaseDir();
+            if (projectRoot != null) {
+                String projectPath = projectRoot.getPath();
+                String filePath = file.getPath();
+                
+                if (filePath.startsWith(projectPath)) {
+                    return filePath.substring(projectPath.length() + 1);
+                }
             }
         } catch (Exception e) {
             System.err.println("Failed to get relative path: " + e.getMessage());
+            // 如果git方式失败，尝试使用项目根目录
+            try {
+                VirtualFile projectRoot = project.getBaseDir();
+                if (projectRoot != null) {
+                    String projectPath = projectRoot.getPath();
+                    String filePath = file.getPath();
+                    
+                    if (filePath.startsWith(projectPath)) {
+                        return filePath.substring(projectPath.length() + 1);
+                    }
+                }
+            } catch (Exception ex) {
+                System.err.println("Failed to get relative path with project base dir: " + ex.getMessage());
+            }
         }
         
         return null;

@@ -95,8 +95,15 @@ public class GitRepositoryUtil {
      */
     public static boolean isGitRepository(Project project) {
         try {
-            GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
-            return !manager.getRepositories().isEmpty();
+            // 使用更直接的方式检查Git仓库
+            VirtualFile projectRoot = project.getBaseDir();
+            if (projectRoot == null) {
+                return false;
+            }
+            
+            // 检查.git目录是否存在
+            VirtualFile gitDir = projectRoot.findChild(".git");
+            return gitDir != null;
         } catch (Exception e) {
             return false;
         }
@@ -107,12 +114,12 @@ public class GitRepositoryUtil {
      */
     public static GitRepoInfo getGitRepoInfo(Project project) {
         try {
-            GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
-            if (manager.getRepositories().isEmpty()) {
+            // 使用GitUtil更兼容的方式获取仓库
+            GitRepository repo = GitUtil.getRepositoryForFile(project, project.getBaseDir());
+            if (repo == null) {
                 return null;
             }
             
-            GitRepository repo = manager.getRepositories().get(0);
             String remoteUrl = getRemoteUrl(repo);
             
             if (remoteUrl != null) {

@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.25"  // 更新Kotlin版本以支持JDK 21
-    id("org.jetbrains.intellij") version "1.17.4"
+    id("org.jetbrains.kotlin.jvm") version "1.9.25"
+    id("org.jetbrains.intellij") version "1.17.4"  // 保持当前版本暂时兼容
 }
 
 // 配置Java工具链使用JDK 21，但编译目标为17以兼容IntelliJ IDEA 2023.2
@@ -12,24 +12,24 @@ java {
 }
 
 group = "com.devtoolkit"
-version = "1.0.0"
+version = "1.0.1"  // 更新版本号以支持最新IDE版本
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    // 移除显式的kotlin-stdlib依赖，让IntelliJ平台自动管理
+    // implementation("org.jetbrains.kotlin:kotlin-stdlib")
     
-    // 测试依赖
+    // 测试依赖 - 简化配置避免冲突
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 }
 
-// Configure Gradle IntelliJ Plugin
+// Configure Gradle IntelliJ Plugin - 使用兼容的版本配置
 intellij {
-    version.set("2023.2")
+    version.set("2023.3")  // 使用与Plugin 1.x兼容的版本
     type.set("IC") // IntelliJ IDEA Community Edition
     plugins.set(listOf("java", "Git4Idea"))
 }
@@ -58,8 +58,8 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("232")
-        untilBuild.set("241.*")
+        sinceBuild.set("232")  // 支持从2023.2开始
+        untilBuild.set("253.*")  // 支持到2025.3版本
     }
 
     signPlugin {

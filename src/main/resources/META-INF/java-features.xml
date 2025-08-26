@@ -1,0 +1,13 @@
+<idea-plugin>
+    <!-- Java-specific features that are only available when Java plugin is present -->
+    
+    <!-- This file is loaded only when com.intellij.modules.java is available -->
+    <!-- Ensures Spring Boot and JAX-RS support work only in Java IDEs -->
+    
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Java-specific extensions can be added here if needed -->
+    </extensions>
+    
+    <!-- No additional actions needed as our main actions are framework-agnostic -->
+    <!-- The strategies will automatically detect available frameworks -->
+</idea-plugin>

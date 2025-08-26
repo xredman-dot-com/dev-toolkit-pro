@@ -5,6 +5,9 @@ import com.devtoolkit.pro.strategies.impl.SpringEndpointScanStrategy;
 import com.devtoolkit.pro.strategies.impl.FastApiEndpointScanStrategy;
 import com.devtoolkit.pro.strategies.impl.JaxRsEndpointScanStrategy;
 import com.intellij.openapi.project.Project;
+import com.intellij.ide.plugins.PluginManager;
+import com.intellij.ide.plugins.IdeaPluginDescriptor;
+import com.intellij.openapi.extensions.PluginId;
 
 import java.util.*;
 
@@ -28,15 +31,41 @@ public class RestfulEndpointStrategyManager {
     private List<RestfulEndpointScanStrategy> initializeStrategies() {
         List<RestfulEndpointScanStrategy> strategyList = new ArrayList<>();
         
-        // 添加所有策略实现
-        strategyList.add(new SpringEndpointScanStrategy());
+        // 始终添加FastAPI策略（支持所有IDE）
         strategyList.add(new FastApiEndpointScanStrategy());
-        strategyList.add(new JaxRsEndpointScanStrategy());
+        
+        // 只在Java模块可用时添加Java相关策略
+        if (isJavaModuleAvailable()) {
+            strategyList.add(new SpringEndpointScanStrategy());
+            strategyList.add(new JaxRsEndpointScanStrategy());
+            System.out.println("Java module available, loaded Spring and JAX-RS strategies");
+        } else {
+            System.out.println("Java module not available, skipping Java-specific strategies");
+        }
         
         // 按优先级排序（数值越小优先级越高）
         strategyList.sort(Comparator.comparingInt(RestfulEndpointScanStrategy::getPriority));
         
         return strategyList;
+    }
+    
+    /**
+     * 检查Java模块是否可用
+     */
+    private boolean isJavaModuleAvailable() {
+        try {
+            // 检查Java模块是否被加载
+            IdeaPluginDescriptor javaPlugin = PluginManager.getPlugin(PluginId.getId("com.intellij.java"));
+            if (javaPlugin != null && javaPlugin.isEnabled()) {
+                return true;
+            }
+            
+            // 如果上面失败，尝试检查核心Java类是否可用
+            Class.forName("com.intellij.psi.PsiJavaFile");
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**
