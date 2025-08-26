@@ -75,7 +75,7 @@
         <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"/>
         
         <!-- RESTful Endpoints Contributor for Search Everywhere dialog -->
-        <searchEverywhereContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointSearchEverywhereContributor$Factory"/>
+        <searchEverywhereContributor id="DevToolkitPro.RestfulEndpoints" implementation="com.devtoolkit.pro.contributors.RestfulEndpointSearchEverywhereContributor$Factory"/>
         
         <!-- RESTful Endpoints Contributor for Symbols tab -->
         <gotoSymbolContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointSymbolContributor"/>

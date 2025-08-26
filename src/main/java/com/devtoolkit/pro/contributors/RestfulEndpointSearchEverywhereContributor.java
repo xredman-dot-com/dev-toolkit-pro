@@ -36,7 +36,7 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     @NotNull
     @Override
     public String getSearchProviderId() {
-        return getClass().getSimpleName(); // 使用类名作为ID
+        return "DevToolkitPro.RestfulEndpoints"; // 使用插件前缀避免冲突
     }
 
     @NotNull
@@ -53,6 +53,11 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     @Override
     public boolean showInFindResults() {
         return true; // 改为true，确保能被搜索到
+    }
+
+    @Override
+    public boolean isShownInSeparateTab() {
+        return true; // 确保作为独立标签页显示
     }
 
     @Override

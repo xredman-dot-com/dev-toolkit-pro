@@ -3,9 +3,10 @@ package com.devtoolkit.pro.utils;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import git4idea.GitUtil;
-import git4idea.repo.GitRepository;
-import git4idea.repo.GitRepositoryManager;
+// 暂时注释掉Git相关导入以解决兼容性问题
+// import git4idea.GitUtil;
+// import git4idea.repo.GitRepository;
+// import git4idea.repo.GitRepositoryManager;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -92,20 +93,28 @@ public class GitLinkUtil {
     
     /**
      * 检查项目是否为Git仓库
+     * 暂时禁用以解决兼容性问题
      */
     public static boolean isGitRepository(Project project) {
+        // 暂时注释掉Git API调用以解决兼容性问题
+        /*
         try {
             GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
             return !manager.getRepositories().isEmpty();
         } catch (Exception e) {
             return false;
         }
+        */
+        return false;
     }
     
     /**
      * 获取当前文件的Git仓库信息
+     * 暂时禁用以解决兼容性问题
      */
     public static GitRepoInfo getGitRepoInfo(Project project, VirtualFile file) {
+        // 暂时注释掉Git API调用以解决兼容性问题
+        /*
         try {
             GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
             GitRepository repo = GitUtil.getRepositoryForFile(project, file);
@@ -123,24 +132,33 @@ public class GitLinkUtil {
         } catch (Exception e) {
             System.err.println("Failed to get git repo info: " + e.getMessage());
         }
+        */
         return null;
     }
     
     /**
      * 获取当前分支名
+     * 暂时禁用以解决兼容性问题
      */
-    private static String getCurrentBranch(GitRepository repo) {
+    private static String getCurrentBranch(Object repo) {
+        // 暂时注释掉Git API调用以解决兼容性问题
+        /*
         try {
             return repo.getCurrentBranch() != null ? repo.getCurrentBranch().getName() : "main";
         } catch (Exception e) {
             return "main";
         }
+        */
+        return "main";
     }
     
     /**
      * 获取远程仓库URL
+     * 暂时禁用以解决兼容性问题
      */
-    private static String getRemoteUrl(GitRepository repo) {
+    private static String getRemoteUrl(Object repo) {
+        // 暂时注释掉Git API调用以解决兼容性问题
+        /*
         try {
             // 尝试获取origin远程仓库URL
             if (repo.getRemotes().stream().anyMatch(remote -> "origin".equals(remote.getName()))) {
@@ -156,11 +174,12 @@ public class GitLinkUtil {
                 .findFirst()
                 .map(remote -> remote.getFirstUrl())
                 .orElse(null);
-                
         } catch (Exception e) {
             System.err.println("Failed to get remote URL: " + e.getMessage());
             return null;
         }
+        */
+        return null;
     }
     
     /**
@@ -278,27 +297,7 @@ public class GitLinkUtil {
      */
     public static String getRelativePath(Project project, VirtualFile file) {
         try {
-            GitRepository repo = GitUtil.getRepositoryForFile(project, file);
-            
-            if (repo != null) {
-                // 尝试使用Git仓库根目录
-                try {
-                    // 直接使用项目根目录作为repo根目录
-                    VirtualFile projectRoot = project.getBaseDir();
-                    if (projectRoot != null) {
-                        String projectPath = projectRoot.getPath();
-                        String filePath = file.getPath();
-                        
-                        if (filePath.startsWith(projectPath)) {
-                            return filePath.substring(projectPath.length() + 1);
-                        }
-                    }
-                } catch (Exception ex) {
-                    // 如果Git方式失败，继续使用项目根目录
-                }
-            }
-            
-            // 如果git方式失败，尝试使用项目根目录
+            // 直接使用项目根目录
             VirtualFile projectRoot = project.getBaseDir();
             if (projectRoot != null) {
                 String projectPath = projectRoot.getPath();
@@ -310,20 +309,6 @@ public class GitLinkUtil {
             }
         } catch (Exception e) {
             System.err.println("Failed to get relative path: " + e.getMessage());
-            // 如果git方式失败，尝试使用项目根目录
-            try {
-                VirtualFile projectRoot = project.getBaseDir();
-                if (projectRoot != null) {
-                    String projectPath = projectRoot.getPath();
-                    String filePath = file.getPath();
-                    
-                    if (filePath.startsWith(projectPath)) {
-                        return filePath.substring(projectPath.length() + 1);
-                    }
-                }
-            } catch (Exception ex) {
-                System.err.println("Failed to get relative path with project base dir: " + ex.getMessage());
-            }
         }
         
         return null;

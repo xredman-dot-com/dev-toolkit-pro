@@ -12,7 +12,7 @@ java {
 }
 
 group = "com.devtoolkit"
-version = "1.0.4"  // 添加Restful Endpoints系统搜索标签页
+version = "1.0.5"  // 修复最新版本IDE兼容性问题
 
 repositories {
     mavenCentral()
@@ -29,9 +29,9 @@ dependencies {
 
 // Configure Gradle IntelliJ Plugin - 兼容多IDE环境
 intellij {
-    version.set("2023.3")  // 使用稳定版本避免兼容性问题
+    version.set("2024.2")  // 更新到2024.2以支持最新IDE版本
     type.set("IC") // 使用Community Edition作为基础
-    plugins.set(listOf("java", "Git4Idea"))  // 基础插件，Python支持通过运行时检测
+    plugins.set(listOf("java", "Git4Idea"))  // Git插件
 }
 
 tasks {

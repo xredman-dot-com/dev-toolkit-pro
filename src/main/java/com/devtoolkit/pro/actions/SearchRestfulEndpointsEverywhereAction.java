@@ -3,6 +3,7 @@ package com.devtoolkit.pro.actions;
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
@@ -26,58 +27,40 @@ public class SearchRestfulEndpointsEverywhereAction extends AnAction {
         LOG.info("Triggering Search Everywhere for Restful Endpoints");
 
         try {
-            // 首先尝试直接使用特定ID打开
+            // 打开Search Everywhere对话框，使用默认的"All"标签页
             SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
             if (manager != null) {
-                try {
-                    // 尝试使用类名ID
-                    manager.show("RestfulEndpointSearchEverywhereContributor", "", e);
-                    LOG.info("Successfully triggered Search Everywhere with class name ID");
-                    return;
-                } catch (IllegalArgumentException ex1) {
-                    LOG.warn("Class name ID failed, trying short ID: " + ex1.getMessage());
-                    try {
-                        // 尝试使用短ID
-                        manager.show("RestfulEndpoints", "", e);
-                        LOG.info("Successfully triggered Search Everywhere with short RestfulEndpoints ID");
-                        return;
-                    } catch (IllegalArgumentException ex2) {
-                        LOG.warn("Short ID also failed: " + ex2.getMessage());
-                        // 回退到All标签页
-                        manager.show("", "", e);
-                        LOG.info("Fallback: Opened Search Everywhere with All tab");
-                        return;
-                    }
-                }
+                // 使用"SearchEverywhereContributor.All"作为默认标签页ID
+                manager.show("SearchEverywhereContributor.All", "", e);
+                LOG.info("Successfully opened Search Everywhere dialog with All tab");
+                return;
             } else {
-                LOG.warn("SearchEverywhereManager is null, falling back to default search");
+                LOG.warn("SearchEverywhereManager is null");
             }
         } catch (Exception ex) {
             LOG.error("Error showing Search Everywhere", ex);
+            // 如果出错，尝试使用更简单的方式
+            try {
+                SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
+                if (manager != null) {
+                    manager.show("All", "", e);
+                }
+            } catch (Exception fallbackEx) {
+                LOG.error("Fallback also failed", fallbackEx);
+            }
         }
-        
-        // 最终回退方案
-        fallbackToDefaultSearch(e);
     }
 
-    /**
-     * 回退到默认的Search Everywhere
-     */
-    private void fallbackToDefaultSearch(@NotNull AnActionEvent e) {
-        try {
-            SearchEverywhereManager manager = SearchEverywhereManager.getInstance(e.getProject());
-            if (manager != null) {
-                manager.show("", "", e);
-                LOG.info("Fallback: Opened default Search Everywhere");
-            }
-        } catch (Exception ex) {
-            LOG.error("Fallback also failed", ex);
-        }
-    }
+
 
     @Override
     public void update(@NotNull AnActionEvent e) {
         Project project = e.getProject();
         e.getPresentation().setEnabledAndVisible(project != null);
+    }
+
+    @Override
+    public @NotNull ActionUpdateThread getActionUpdateThread() {
+        return ActionUpdateThread.BGT;
     }
 }

@@ -2,9 +2,10 @@ package com.devtoolkit.pro.utils;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import git4idea.GitUtil;
-import git4idea.repo.GitRepository;
-import git4idea.repo.GitRepositoryManager;
+// 暂时注释掉Git相关导入以解决兼容性问题
+// import git4idea.GitUtil;
+// import git4idea.repo.GitRepository;
+// import git4idea.repo.GitRepositoryManager;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -111,8 +112,11 @@ public class GitRepositoryUtil {
     
     /**
      * 获取Git仓库信息
+     * 暂时禁用以解决兼容性问题
      */
     public static GitRepoInfo getGitRepoInfo(Project project) {
+        // 暂时注释掉Git API调用以解决兼容性问题
+        /*
         try {
             // 使用GitUtil更兼容的方式获取仓库
             GitRepository repo = GitUtil.getRepositoryForFile(project, project.getBaseDir());
@@ -128,13 +132,17 @@ public class GitRepositoryUtil {
         } catch (Exception e) {
             System.err.println("Failed to get git repo info: " + e.getMessage());
         }
+        */
         return null;
     }
     
     /**
      * 获取远程仓库URL
+     * 暂时禁用以解决兼容性问题
      */
-    private static String getRemoteUrl(GitRepository repo) {
+    private static String getRemoteUrl(Object repo) {
+        // 暂时注释掉Git API调用以解决兼容性问题
+        /*
         try {
             // 尝试获取origin远程仓库URL
             if (repo.getRemotes().stream().anyMatch(remote -> "origin".equals(remote.getName()))) {
@@ -153,8 +161,9 @@ public class GitRepositoryUtil {
                 
         } catch (Exception e) {
             System.err.println("Failed to get remote URL: " + e.getMessage());
-            return null;
         }
+        */
+        return null;
     }
     
     /**

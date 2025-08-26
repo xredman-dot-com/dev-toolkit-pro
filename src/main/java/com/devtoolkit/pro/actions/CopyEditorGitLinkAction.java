@@ -2,6 +2,7 @@ package com.devtoolkit.pro.actions;
 
 import com.devtoolkit.pro.utils.GitLinkUtil;
 import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
@@ -23,9 +24,9 @@ import java.util.List;
  * 在编辑器右键菜单中提供复制GitHub/GitLab链接的功能
  */
 public class CopyEditorGitLinkAction extends AnAction {
-    
+
     public CopyEditorGitLinkAction() {
-        super("Copy Git Link", "Copy GitHub/GitLab link for current file/line", 
+        super("Copy Git Link", "Copy GitHub/GitLab link for current file/line",
               com.intellij.icons.AllIcons.Vcs.Vendors.Github);
     }
 
@@ -34,7 +35,7 @@ public class CopyEditorGitLinkAction extends AnAction {
         Project project = e.getProject();
         Editor editor = e.getData(CommonDataKeys.EDITOR);
         VirtualFile virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE);
-        
+
         if (project == null || editor == null || virtualFile == null) {
             Messages.showErrorDialog(project, "无法获取当前文件信息", "错误");
             return;
@@ -61,13 +62,13 @@ public class CopyEditorGitLinkAction extends AnAction {
         Project project = e.getProject();
         Editor editor = e.getData(CommonDataKeys.EDITOR);
         VirtualFile virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE);
-        
-        boolean enabled = project != null && editor != null && virtualFile != null 
+
+        boolean enabled = project != null && editor != null && virtualFile != null
                          && GitLinkUtil.isGitRepository(project);
-        
+
         e.getPresentation().setEnabled(enabled);
         e.getPresentation().setVisible(enabled);
-        
+
         // 如果可用，尝试更新显示文本以包含Git平台信息
         if (enabled && virtualFile != null) {
             try {
@@ -83,13 +84,18 @@ public class CopyEditorGitLinkAction extends AnAction {
         }
     }
 
+    @Override
+    public @NotNull ActionUpdateThread getActionUpdateThread() {
+        return ActionUpdateThread.BGT;
+    }
+
     /**
      * 显示Git链接选择弹出菜单
      */
-    private void showGitLinkPopup(@NotNull AnActionEvent e, @NotNull Project project, 
+    private void showGitLinkPopup(@NotNull AnActionEvent e, @NotNull Project project,
                                  @NotNull Editor editor, @NotNull VirtualFile virtualFile,
                                  @NotNull GitLinkUtil.GitRepoInfo repoInfo) {
-        
+
         String relativePath = GitLinkUtil.getRelativePath(project, virtualFile);
         if (relativePath == null) {
             Messages.showErrorDialog(project, "无法获取文件相对路径", "错误");
@@ -110,7 +116,7 @@ public class CopyEditorGitLinkAction extends AnAction {
 
         BaseListPopupStep<GitLinkOption> step = new BaseListPopupStep<GitLinkOption>(
             repoInfo.getPlatform().getDisplayName() + " Links", options) {
-            
+
             @Override
             public PopupStep<?> onChosen(GitLinkOption selectedValue, boolean finalChoice) {
                 if (finalChoice) {
@@ -153,8 +159,8 @@ public class CopyEditorGitLinkAction extends AnAction {
         String url = GitLinkUtil.generateFileUrl(repoInfo, relativePath);
         if (url != null) {
             CopyPasteManager.getInstance().setContents(new StringSelection(url));
-            Messages.showInfoMessage(project, 
-                "文件链接已复制到剪贴板\n" + url, 
+            Messages.showInfoMessage(project,
+                "文件链接已复制到剪贴板\n" + url,
                 "Git链接复制成功");
         } else {
             Messages.showErrorDialog(project, "无法生成文件链接", "错误");
@@ -164,15 +170,15 @@ public class CopyEditorGitLinkAction extends AnAction {
     /**
      * 复制当前行链接
      */
-    private void copyCurrentLineLink(Project project, Editor editor, 
+    private void copyCurrentLineLink(Project project, Editor editor,
                                    GitLinkUtil.GitRepoInfo repoInfo, String relativePath) {
         int lineNumber = GitLinkUtil.getCurrentLineNumber(editor);
         String url = GitLinkUtil.generateFileUrlWithLine(repoInfo, relativePath, lineNumber);
         if (url != null) {
             CopyPasteManager.getInstance().setContents(new StringSelection(url));
-            Messages.showInfoMessage(project, 
-                String.format("%s 链接已复制到剪贴板\n%s\n\n定位到第 %d 行", 
-                    repoInfo.getPlatform().getDisplayName(), url, lineNumber), 
+            Messages.showInfoMessage(project,
+                String.format("%s 链接已复制到剪贴板\n%s\n\n定位到第 %d 行",
+                    repoInfo.getPlatform().getDisplayName(), url, lineNumber),
                 "Git链接复制成功");
         } else {
             Messages.showErrorDialog(project, "无法生成行链接", "错误");
@@ -182,27 +188,27 @@ public class CopyEditorGitLinkAction extends AnAction {
     /**
      * 复制选中行范围链接
      */
-    private void copySelectedLinesLink(Project project, Editor editor, 
+    private void copySelectedLinesLink(Project project, Editor editor,
                                      GitLinkUtil.GitRepoInfo repoInfo, String relativePath) {
         int[] lineRange = GitLinkUtil.getSelectedLineRange(editor);
         int startLine = lineRange[0];
         int endLine = lineRange[1];
-        
+
         String url;
         if (startLine == endLine) {
             url = GitLinkUtil.generateFileUrlWithLine(repoInfo, relativePath, startLine);
         } else {
             url = GitLinkUtil.generateFileUrlWithLineRange(repoInfo, relativePath, startLine, endLine);
         }
-        
+
         if (url != null) {
             CopyPasteManager.getInstance().setContents(new StringSelection(url));
             String message;
             if (startLine == endLine) {
-                message = String.format("%s 链接已复制到剪贴板\n%s\n\n定位到第 %d 行", 
+                message = String.format("%s 链接已复制到剪贴板\n%s\n\n定位到第 %d 行",
                     repoInfo.getPlatform().getDisplayName(), url, startLine);
             } else {
-                message = String.format("%s 链接已复制到剪贴板\n%s\n\n定位到第 %d-%d 行", 
+                message = String.format("%s 链接已复制到剪贴板\n%s\n\n定位到第 %d-%d 行",
                     repoInfo.getPlatform().getDisplayName(), url, startLine, endLine);
             }
             Messages.showInfoMessage(project, message, "Git链接复制成功");
