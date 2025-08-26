@@ -9,12 +9,15 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.util.Processor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.Component;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.InputEvent;
 import java.util.List;
 
 /**
@@ -100,13 +103,29 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
 
     @Override
     public boolean processSelectedItem(@NotNull RestfulEndpointNavigationItem selected, int modifiers, @NotNull String searchText) {
-        LOG.info("Processing selected item: " + selected.getName());
-        try {
-            selected.navigate(true);
-            return true;
-        } catch (Exception e) {
-            LOG.error("Error navigating to selected item", e);
-            return false;
+        LOG.info("Processing selected item: " + selected.getName() + ", modifiers: " + modifiers);
+        
+        // 检查是否按下了Shift键 (Shift+Enter)
+        if ((modifiers & InputEvent.SHIFT_DOWN_MASK) != 0) {
+            // 复制完整的URL和方法到剪切板
+            String fullUrl = selected.getName(); // 格式如: "GET /api/users"
+            try {
+                CopyPasteManager.getInstance().setContents(new StringSelection(fullUrl));
+                LOG.info("Copied to clipboard: " + fullUrl);
+                return true; // 返回true表示已处理，不进行导航
+            } catch (Exception e) {
+                LOG.error("Error copying to clipboard", e);
+                return false;
+            }
+        } else {
+            // 正常的Enter键，进行导航
+            try {
+                selected.navigate(true);
+                return true;
+            } catch (Exception e) {
+                LOG.error("Error navigating to selected item", e);
+                return false;
+            }
         }
     }
 
