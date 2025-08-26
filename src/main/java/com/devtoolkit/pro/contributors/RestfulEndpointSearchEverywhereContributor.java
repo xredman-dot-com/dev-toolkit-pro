@@ -56,11 +56,6 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     }
 
     @Override
-    public boolean isShownInSeparateTab() {
-        return true; // 确保显示为单独的标签页
-    }
-
-    @Override
     public void fetchElements(@NotNull String pattern,
                             @NotNull ProgressIndicator progressIndicator,
                             @NotNull Processor<? super RestfulEndpointNavigationItem> consumer) {
@@ -104,16 +99,6 @@ public class RestfulEndpointSearchEverywhereContributor implements SearchEverywh
     @Override
     public @Nullable Object getDataForItem(@NotNull RestfulEndpointNavigationItem element, @NotNull String dataId) {
         return null;
-    }
-
-    @Override
-    public boolean isEmptyPatternSupported() {
-        return true; // 支持空模式搜索，显示所有端点
-    }
-
-    @Override
-    public boolean isDumbModeSupported() {
-        return true; // 在dumb模式下也支持
     }
 
     @NotNull
