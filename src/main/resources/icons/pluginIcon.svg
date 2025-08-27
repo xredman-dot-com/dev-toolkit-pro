@@ -5,6 +5,11 @@
       <stop offset="0%" style="stop-color:#7C3AED;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
     </linearGradient>
+    <!-- Pro标签渐变 -->
+    <linearGradient id="proGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EF4444;stop-opacity:1" />
+    </linearGradient>
     <!-- 阴影滤镜 -->
     <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
       <feDropShadow dx="0.5" dy="0.5" stdDeviation="0.5" flood-color="#000000" flood-opacity="0.3"/>
@@ -15,5 +20,11 @@
   <circle cx="8" cy="8" r="7.5" fill="url(#mainGradient)" filter="url(#shadow)"/>
   
   <!-- 字母D -->
-  <text x="8" y="11" font-family="Arial, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="middle" font-weight="bold" filter="url(#shadow)">D</text>
+  <text x="7" y="11" font-family="Arial, sans-serif" font-size="9" fill="#FFFFFF" text-anchor="middle" font-weight="bold" filter="url(#shadow)">D</text>
+  
+  <!-- Pro标签背景 -->
+  <rect x="10" y="1" width="5" height="3" rx="1" fill="url(#proGradient)" filter="url(#shadow)"/>
+  
+  <!-- Pro文字 -->
+  <text x="12.5" y="3.2" font-family="Arial, sans-serif" font-size="2.5" fill="#FFFFFF" text-anchor="middle" font-weight="bold">Pro</text>
 </svg>

@@ -3,15 +3,8 @@ package com.devtoolkit.pro.utils;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-// import git4idea.GitUtil;
-// import git4idea.repo.GitRepository;
-// import git4idea.repo.GitRepositoryManager;
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -119,28 +112,18 @@ public class GitLinkUtil {
     public static GitRepoInfo getGitRepoInfo(Project project, VirtualFile file) {
         try {
             if (project == null || project.getBasePath() == null) {
-                System.err.println("Project or basePath is null");
                 return null;
             }
-
-            System.err.println("Project basePath: " + project.getBasePath());
 
             String remoteUrl = getRemoteUrl(project);
             String currentBranch = getCurrentBranch(project);
 
-            System.err.println("Remote URL: " + remoteUrl);
-            System.err.println("Current branch: " + currentBranch);
-
             if (remoteUrl != null) {
                 GitRepoInfo repoInfo = parseRemoteUrl(remoteUrl, currentBranch);
-                System.err.println("Parsed repo info: " + (repoInfo != null ? "success" : "failed"));
                 return repoInfo;
-            } else {
-                System.err.println("Remote URL is null, cannot create repo info");
             }
         } catch (Exception e) {
-            System.err.println("Failed to get git repo info: " + e.getMessage());
-            e.printStackTrace();
+            // Failed to get git repo info
         }
         return null;
     }

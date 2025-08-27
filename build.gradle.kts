@@ -12,7 +12,7 @@ java {
 }
 
 group = "com.devtoolkit"
-version = "1.0.5"  // 修复最新版本IDE兼容性问题
+version = "0.0.1"
 
 repositories {
     mavenCentral()

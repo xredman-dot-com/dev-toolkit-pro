@@ -3,31 +3,17 @@ package com.devtoolkit.pro.services;
 import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
 import com.devtoolkit.pro.strategies.RestfulEndpointStrategyManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.search.FileTypeIndex;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.search.searches.AnnotatedElementsSearch;
-import com.intellij.ide.fileTemplates.FileTemplateManager;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.impl.source.JavaDummyHolder;
-import com.intellij.psi.impl.source.JavaDummyElement;
-import com.intellij.openapi.application.ReadAction;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiConstantEvaluationHelper;
 import com.intellij.psi.JavaPsiFacade;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,18 +26,18 @@ public class RestfulUrlService {
     private final Project project;
     private final PsiManager psiManager;
     private final RestfulEndpointStrategyManager strategyManager;
-    
+
     // Spring注解模式
     private static final String[] SPRING_ANNOTATIONS = {
-        "@RequestMapping", "@GetMapping", "@PostMapping", 
-        "@PutMapping", "@DeleteMapping", "@PatchMapping"
+            "@RequestMapping", "@GetMapping", "@PostMapping",
+            "@PutMapping", "@DeleteMapping", "@PatchMapping"
     };
-    
+
     // JAX-RS注解模式
     private static final String[] JAXRS_ANNOTATIONS = {
-        "@Path", "@GET", "@POST", "@PUT", "@DELETE"
+            "@Path", "@GET", "@POST", "@PUT", "@DELETE"
     };
-    
+
     // URL路径提取正则
     private static final Pattern URL_PATTERN = Pattern.compile("\"([^\"]*)\"");
     private static final Pattern VALUE_PATTERN = Pattern.compile("value\s*=\s*\"([^\"]*)\"");
@@ -68,14 +54,14 @@ public class RestfulUrlService {
      */
     public List<String> findAllRestfulUrls() {
         Set<String> urls = new HashSet<>();
-        
+
         // 扫描Java文件
         scanJavaFiles(urls);
-        
+
         // 转换为列表并排序
         List<String> result = new ArrayList<>(urls);
         result.sort(String::compareTo);
-        
+
         return result;
     }
 
@@ -85,14 +71,14 @@ public class RestfulUrlService {
     private void scanJavaFiles(Set<String> urls) {
         // 检查Java支持是否可用
         if (!isJavaModuleAvailable()) {
-            System.out.println("Java module not available, skipping Java file scanning");
+
             return;
         }
-        
+
         try {
             FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
-            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
-                GlobalSearchScope.projectScope(project));
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType,
+                    GlobalSearchScope.projectScope(project));
 
             for (VirtualFile virtualFile : javaFiles) {
                 PsiFile psiFile = psiManager.findFile(virtualFile);
@@ -117,16 +103,17 @@ public class RestfulUrlService {
             return false;
         }
     }
-    
+
     /**
      * 检查文件是否是Java文件（不使用instanceof PsiJavaFile）
      */
     private boolean isJavaFile(PsiFile psiFile) {
-        if (psiFile == null) return false;
+        if (psiFile == null)
+            return false;
         return psiFile.getClass().getSimpleName().equals("PsiJavaFileImpl") ||
-               psiFile.getFileType().getName().equals("JAVA");
+                psiFile.getFileType().getName().equals("JAVA");
     }
-    
+
     /**
      * 使用反射方式扫描Java文件
      */
@@ -134,7 +121,7 @@ public class RestfulUrlService {
         try {
             // 通过反射获取classes
             Object[] classes = (Object[]) javaFile.getClass().getMethod("getClasses").invoke(javaFile);
-            
+
             for (Object classObj : classes) {
                 PsiClass psiClass = (PsiClass) classObj;
                 String classLevelPath = extractClassLevelPath(psiClass);
@@ -144,7 +131,7 @@ public class RestfulUrlService {
             System.err.println("Error scanning Java file with reflection: " + e.getMessage());
         }
     }
-    
+
     /**
      * 扫描单个Java文件（已弃用，保留向后兼容性）
      */
@@ -158,15 +145,15 @@ public class RestfulUrlService {
      */
     private String extractClassLevelPath(PsiClass psiClass) {
         PsiAnnotation[] annotations = psiClass.getAnnotations();
-        
+
         for (PsiAnnotation annotation : annotations) {
             String qualifiedName = annotation.getQualifiedName();
-            if (qualifiedName != null && 
-                (qualifiedName.endsWith("RequestMapping") || qualifiedName.endsWith("Path"))) {
+            if (qualifiedName != null &&
+                    (qualifiedName.endsWith("RequestMapping") || qualifiedName.endsWith("Path"))) {
                 return extractPathFromAnnotation(annotation);
             }
         }
-        
+
         return "";
     }
 
@@ -175,7 +162,7 @@ public class RestfulUrlService {
      */
     private void scanMethods(PsiClass psiClass, String classLevelPath, Set<String> urls) {
         PsiMethod[] methods = psiClass.getMethods();
-        
+
         for (PsiMethod method : methods) {
             scanMethod(method, classLevelPath, urls);
         }
@@ -186,19 +173,20 @@ public class RestfulUrlService {
      */
     private void scanMethod(PsiMethod method, String classLevelPath, Set<String> urls) {
         PsiAnnotation[] annotations = method.getAnnotations();
-        
+
         for (PsiAnnotation annotation : annotations) {
             String qualifiedName = annotation.getQualifiedName();
-            if (qualifiedName == null) continue;
-            
+            if (qualifiedName == null)
+                continue;
+
             String httpMethod = getHttpMethod(qualifiedName);
             if (httpMethod != null) {
                 String methodPath = extractPathFromAnnotation(annotation);
                 String fullPath = combinePaths(classLevelPath, methodPath);
-                
+
                 if (!fullPath.isEmpty()) {
-                    String urlInfo = String.format("%s %s (%s.%s)", 
-                        httpMethod, fullPath, method.getContainingClass().getName(), method.getName());
+                    String urlInfo = String.format("%s %s (%s.%s)",
+                            httpMethod, fullPath, method.getContainingClass().getName(), method.getName());
                     urls.add(urlInfo);
                 }
             }
@@ -211,11 +199,8 @@ public class RestfulUrlService {
      */
     public String extractPathFromAnnotation(PsiAnnotation annotation) {
         if (annotation == null) {
-            System.out.println("[DEBUG] extractPathFromAnnotation - annotation is null");
             return "";
         }
-
-        System.out.println("[DEBUG] extractPathFromAnnotation - Processing annotation: " + annotation.getQualifiedName());
 
         PsiAnnotationMemberValue value = annotation.findAttributeValue("value");
         if (value == null) {
@@ -223,10 +208,8 @@ public class RestfulUrlService {
         }
 
         if (value != null) {
-            System.out.println("[DEBUG] extractPathFromAnnotation - Found attribute value: " + value.getText());
             // 尝试使用PSI常量求值来解析表达式
             Object constantValue = evaluateConstantExpression(value);
-            System.out.println("[DEBUG] extractPathFromAnnotation - Constant evaluation result: " + constantValue);
             if (constantValue != null) {
                 return constantValue.toString();
             }
@@ -234,40 +217,34 @@ public class RestfulUrlService {
             // 回退到直接字面量处理
             if (value instanceof PsiLiteralExpression) {
                 Object literalValue = ((PsiLiteralExpression) value).getValue();
-                System.out.println("[DEBUG] extractPathFromAnnotation - Literal value: " + literalValue);
                 return literalValue != null ? literalValue.toString() : null;
             }
         }
 
         // 回退到原有的正则表达式方法
         String annotationText = annotation.getText();
-        System.out.println("[DEBUG] extractPathFromAnnotation - Falling back to regex parsing on: " + annotationText);
-        
+
         // 尝试提取value属性
         Matcher valueMatcher = VALUE_PATTERN.matcher(annotationText);
         if (valueMatcher.find()) {
-            System.out.println("[DEBUG] extractPathFromAnnotation - Regex found value: " + valueMatcher.group(1));
             return valueMatcher.group(1);
         }
-        
+
         // 尝试提取path属性
         Matcher pathMatcher = PATH_PATTERN.matcher(annotationText);
         if (pathMatcher.find()) {
-            System.out.println("[DEBUG] extractPathFromAnnotation - Regex found path: " + pathMatcher.group(1));
             return pathMatcher.group(1);
         }
-        
+
         // 尝试提取直接的字符串值
         Matcher urlMatcher = URL_PATTERN.matcher(annotationText);
         if (urlMatcher.find()) {
-            System.out.println("[DEBUG] extractPathFromAnnotation - Regex found URL: " + urlMatcher.group(1));
             return urlMatcher.group(1);
         }
-        
-        System.out.println("[DEBUG] extractPathFromAnnotation - No path found, returning empty string");
+
         return "";
     }
-    
+
     /**
      * 使用PSI常量求值来解析常量表达式，如 API.API_V1_PREFIX + "/fetch"
      * 这是统一的常量解析方法，供所有组件使用
@@ -275,8 +252,8 @@ public class RestfulUrlService {
     public Object evaluateConstantExpression(PsiElement element) {
         try {
             // 获取PSI常量求值助手
-            PsiConstantEvaluationHelper evaluationHelper =
-                JavaPsiFacade.getInstance(element.getProject()).getConstantEvaluationHelper();
+            PsiConstantEvaluationHelper evaluationHelper = JavaPsiFacade.getInstance(element.getProject())
+                    .getConstantEvaluationHelper();
 
             // 尝试计算常量表达式的值
             Object result = evaluationHelper.computeConstantExpression(element, false);
@@ -295,7 +272,7 @@ public class RestfulUrlService {
             return null;
         }
     }
-    
+
     /**
      * 手动解析常量引用，特别是第三方jar包中的常量
      * 这是统一的常量解析方法，供所有组件使用
@@ -323,7 +300,7 @@ public class RestfulUrlService {
                     PsiField field = (PsiField) resolved;
                     // 检查是否是常量字段（static final）
                     if (field.hasModifierProperty(PsiModifier.STATIC) &&
-                        field.hasModifierProperty(PsiModifier.FINAL)) {
+                            field.hasModifierProperty(PsiModifier.FINAL)) {
 
                         PsiExpression initializer = field.getInitializer();
                         if (initializer instanceof PsiLiteralExpression) {
@@ -383,7 +360,7 @@ public class RestfulUrlService {
         if (methodPath.isEmpty()) {
             return classPath;
         }
-        
+
         // 确保路径以/开头
         if (!classPath.startsWith("/")) {
             classPath = "/" + classPath;
@@ -391,12 +368,12 @@ public class RestfulUrlService {
         if (!methodPath.startsWith("/")) {
             methodPath = "/" + methodPath;
         }
-        
+
         // 移除classPath末尾的/
         if (classPath.endsWith("/")) {
             classPath = classPath.substring(0, classPath.length() - 1);
         }
-        
+
         return classPath + methodPath;
     }
 
@@ -408,53 +385,52 @@ public class RestfulUrlService {
         try {
             // 使用策略模式扫描端点
             List<RestfulEndpointNavigationItem> endpoints = strategyManager.scanWithBestStrategy();
-            
+
             // 如果策略模式没有找到端点，回退到传统扫描方式
             if (endpoints.isEmpty()) {
-                System.out.println("Strategy scan found no endpoints, falling back to legacy scan");
+
                 endpoints = fallbackToLegacyScan();
             }
-            
-            System.out.println("Total endpoints found: " + endpoints.size());
+
             return endpoints;
-            
+
         } catch (Exception e) {
             System.err.println("Strategy-based scan failed: " + e.getMessage());
             // 如果策略扫描失败，回退到传统扫描
             return fallbackToLegacyScan();
         }
     }
-    
+
     /**
      * 获取策略管理器（用于调试和扩展）
      */
     public RestfulEndpointStrategyManager getStrategyManager() {
         return strategyManager;
     }
-    
+
     /**
      * 传统扫描方式（回退方案）
      */
     private List<RestfulEndpointNavigationItem> fallbackToLegacyScan() {
         List<RestfulEndpointNavigationItem> endpoints = new ArrayList<>();
-        
+
         try {
             // 第一步：尝试从注解获取Controller
             boolean foundFromAnnotations = scanFromSpringContainer(endpoints);
-            
+
             // 第二步：如果注解扫描结果不理想，则通过文件解析补充
             if (!foundFromAnnotations || endpoints.size() < 3) {
                 scanJavaFilesForEndpoints(endpoints);
             }
-            
+
             // 去重并按名称排序
             endpoints = deduplicateEndpoints(endpoints);
             endpoints.sort((a, b) -> a.getName().compareTo(b.getName()));
-            
+
         } catch (Exception e) {
             System.err.println("Legacy scan also failed: " + e.getMessage());
         }
-        
+
         return endpoints;
     }
 
@@ -462,27 +438,26 @@ public class RestfulUrlService {
      * 构建完整的URL路径，包括类级别和方法级别的路径
      */
     public String buildFullUrl(PsiAnnotation annotation, String path) {
-        System.out.println("[DEBUG] buildFullUrl - Input path: " + path);
-        
+
+
         // 查找类级别的@RequestMapping
         PsiClass containingClass = PsiTreeUtil.getParentOfType(annotation, PsiClass.class);
         String basePath = "";
 
         if (containingClass != null) {
-            System.out.println("[DEBUG] buildFullUrl - Found containing class: " + containingClass.getName());
-            PsiAnnotation classMapping = containingClass.getAnnotation("org.springframework.web.bind.annotation.RequestMapping");
+
+            PsiAnnotation classMapping = containingClass
+                    .getAnnotation("org.springframework.web.bind.annotation.RequestMapping");
             if (classMapping != null) {
                 String classPath = extractPathFromAnnotation(classMapping);
-                System.out.println("[DEBUG] buildFullUrl - Class level path from annotation: " + classPath);
+
                 if (classPath != null && !classPath.isEmpty()) {
                     basePath = classPath;
                 }
             } else {
-                System.out.println("[DEBUG] buildFullUrl - No @RequestMapping found on class");
+
             }
         }
-
-        System.out.println("[DEBUG] buildFullUrl - BasePath: " + basePath + ", MethodPath: " + path);
 
         // 确保路径以/开头
         if (!path.startsWith("/")) {
@@ -498,8 +473,6 @@ public class RestfulUrlService {
         // 清理重复的斜杠
         fullPath = fullPath.replaceAll("/+", "/");
 
-        System.out.println("[DEBUG] buildFullUrl - Final fullPath: " + fullPath);
-        
         // 只返回路径部分，不包含host:port
         return fullPath;
     }
@@ -523,11 +496,11 @@ public class RestfulUrlService {
                 if (className != null) {
                     // 尝试查找可能的完全限定类名
                     String[] possiblePackages = {
-                        "", // 当前包
-                        "com.api.", // 常见的API包
-                        "org.api.",
-                        "com.constants.",
-                        "org.constants."
+                            "", // 当前包
+                            "com.api.", // 常见的API包
+                            "org.api.",
+                            "com.constants.",
+                            "org.constants."
                     };
 
                     JavaPsiFacade facade = JavaPsiFacade.getInstance(refExpr.getProject());
@@ -541,8 +514,8 @@ public class RestfulUrlService {
                             PsiField field = psiClass.findFieldByName(referenceName, false);
 
                             if (field != null &&
-                                field.hasModifierProperty(PsiModifier.STATIC) &&
-                                field.hasModifierProperty(PsiModifier.FINAL)) {
+                                    field.hasModifierProperty(PsiModifier.STATIC) &&
+                                    field.hasModifierProperty(PsiModifier.FINAL)) {
 
                                 PsiExpression initializer = field.getInitializer();
                                 if (initializer instanceof PsiLiteralExpression) {
@@ -567,8 +540,8 @@ public class RestfulUrlService {
                                     if (importedClass != null) {
                                         PsiField field = importedClass.findFieldByName(referenceName, false);
                                         if (field != null &&
-                                            field.hasModifierProperty(PsiModifier.STATIC) &&
-                                            field.hasModifierProperty(PsiModifier.FINAL)) {
+                                                field.hasModifierProperty(PsiModifier.STATIC) &&
+                                                field.hasModifierProperty(PsiModifier.FINAL)) {
 
                                             PsiExpression initializer = field.getInitializer();
                                             if (initializer instanceof PsiLiteralExpression) {
@@ -593,6 +566,7 @@ public class RestfulUrlService {
     /**
      * 尝试从Spring注解获取Controller信息
      * 优先通过注解搜索获取所有@RestController和@Controller类
+     *
      * @param endpoints 存储找到的端点
      * @return 是否成功找到Controller
      */
@@ -600,14 +574,14 @@ public class RestfulUrlService {
         try {
             // 尝试通过注解搜索找到所有Controller
             boolean foundControllers = scanControllersFromAnnotations(endpoints);
-            
+
             if (foundControllers) {
                 return true;
             }
-            
+
             // 如果注解搜索失败，尝试通过Spring配置文件找到Bean定义
             return scanControllersFromSpringConfigs(endpoints);
-            
+
         } catch (Exception e) {
             // 如果出现异常，返回false以回退到文件解析
             System.err.println("Failed to scan from Spring annotations: " + e.getMessage());
@@ -621,21 +595,23 @@ public class RestfulUrlService {
     private boolean scanControllersFromAnnotations(List<RestfulEndpointNavigationItem> endpoints) {
         try {
             GlobalSearchScope scope = GlobalSearchScope.projectScope(project);
-            
+
             // 搜索@RestController注解的类
-            Collection<PsiClass> restControllers = findClassesByAnnotation("org.springframework.web.bind.annotation.RestController", scope);
+            Collection<PsiClass> restControllers = findClassesByAnnotation(
+                    "org.springframework.web.bind.annotation.RestController", scope);
             for (PsiClass controllerClass : restControllers) {
                 scanControllerFromSpringBean(controllerClass, endpoints);
             }
-            
+
             // 搜索@Controller注解的类
-            Collection<PsiClass> controllers = findClassesByAnnotation("org.springframework.stereotype.Controller", scope);
+            Collection<PsiClass> controllers = findClassesByAnnotation("org.springframework.stereotype.Controller",
+                    scope);
             for (PsiClass controllerClass : controllers) {
                 if (hasRequestMappingMethods(controllerClass)) {
                     scanControllerFromSpringBean(controllerClass, endpoints);
                 }
             }
-            
+
             return !endpoints.isEmpty();
         } catch (Exception e) {
             System.err.println("Failed to scan controllers from annotations: " + e.getMessage());
@@ -661,12 +637,12 @@ public class RestfulUrlService {
      */
     private Collection<PsiClass> findClassesByAnnotation(String annotationName, GlobalSearchScope scope) {
         List<PsiClass> classes = new ArrayList<>();
-        
+
         // 如果Java模块不可用，返回空列表
         if (!isJavaModuleAvailable()) {
             return classes;
         }
-        
+
         try {
             // 通过文件扫描查找有指定注解的类
             FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
@@ -693,7 +669,7 @@ public class RestfulUrlService {
         } catch (Exception e) {
             System.err.println("Error finding classes by annotation: " + e.getMessage());
         }
-        
+
         return classes;
     }
 
@@ -720,10 +696,10 @@ public class RestfulUrlService {
             PsiAnnotation[] annotations = method.getAnnotations();
             for (PsiAnnotation annotation : annotations) {
                 String qualifiedName = annotation.getQualifiedName();
-                if (qualifiedName != null && 
-                    (qualifiedName.contains("Mapping") || qualifiedName.contains("GET") || 
-                     qualifiedName.contains("POST") || qualifiedName.contains("PUT") || 
-                     qualifiedName.contains("DELETE"))) {
+                if (qualifiedName != null &&
+                        (qualifiedName.contains("Mapping") || qualifiedName.contains("GET") ||
+                                qualifiedName.contains("POST") || qualifiedName.contains("PUT") ||
+                                qualifiedName.contains("DELETE"))) {
                     return true;
                 }
             }
@@ -735,15 +711,16 @@ public class RestfulUrlService {
      * 判断类是否是REST Controller
      */
     private boolean isRestController(PsiClass psiClass) {
-        if (psiClass == null) return false;
-        
+        if (psiClass == null)
+            return false;
+
         PsiAnnotation[] annotations = psiClass.getAnnotations();
         for (PsiAnnotation annotation : annotations) {
             String qualifiedName = annotation.getQualifiedName();
-            if (qualifiedName != null && 
-                (qualifiedName.endsWith("RestController") || 
-                 qualifiedName.endsWith("Controller") ||
-                 qualifiedName.endsWith("RequestMapping"))) {
+            if (qualifiedName != null &&
+                    (qualifiedName.endsWith("RestController") ||
+                            qualifiedName.endsWith("Controller") ||
+                            qualifiedName.endsWith("RequestMapping"))) {
                 return true;
             }
         }
@@ -763,13 +740,13 @@ public class RestfulUrlService {
      */
     private List<RestfulEndpointNavigationItem> deduplicateEndpoints(List<RestfulEndpointNavigationItem> endpoints) {
         Map<String, RestfulEndpointNavigationItem> uniqueEndpoints = new LinkedHashMap<>();
-        
+
         for (RestfulEndpointNavigationItem endpoint : endpoints) {
-            String key = endpoint.getHttpMethod() + ":" + endpoint.getPath() + ":" + 
-                        endpoint.getClassName() + "." + endpoint.getMethodName();
+            String key = endpoint.getHttpMethod() + ":" + endpoint.getPath() + ":" +
+                    endpoint.getClassName() + "." + endpoint.getMethodName();
             uniqueEndpoints.put(key, endpoint);
         }
-        
+
         return new ArrayList<>(uniqueEndpoints.values());
     }
 
@@ -779,14 +756,14 @@ public class RestfulUrlService {
     private void scanJavaFilesForEndpoints(List<RestfulEndpointNavigationItem> endpoints) {
         // 如果Java模块不可用，跳过Java文件扫描
         if (!isJavaModuleAvailable()) {
-            System.out.println("Java module not available, skipping Java file scanning for endpoints");
+
             return;
         }
-        
+
         try {
             FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
-            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
-                GlobalSearchScope.projectScope(project));
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType,
+                    GlobalSearchScope.projectScope(project));
 
             for (VirtualFile virtualFile : javaFiles) {
                 PsiFile psiFile = psiManager.findFile(virtualFile);
@@ -802,11 +779,12 @@ public class RestfulUrlService {
     /**
      * 使用反射方式扫描Java文件并生成端点
      */
-    private void scanJavaFileForEndpointsWithReflection(PsiFile javaFile, List<RestfulEndpointNavigationItem> endpoints) {
+    private void scanJavaFileForEndpointsWithReflection(PsiFile javaFile,
+            List<RestfulEndpointNavigationItem> endpoints) {
         try {
             // 通过反射获取classes
             Object[] classes = (Object[]) javaFile.getClass().getMethod("getClasses").invoke(javaFile);
-            
+
             for (Object classObj : classes) {
                 PsiClass psiClass = (PsiClass) classObj;
                 String classLevelPath = extractClassLevelPath(psiClass);
@@ -816,7 +794,7 @@ public class RestfulUrlService {
             System.err.println("Error scanning Java file for endpoints with reflection: " + e.getMessage());
         }
     }
-    
+
     /**
      * 扫描单个Java文件并生成端点（已弃用，保留向后兼容性）
      */
@@ -828,9 +806,10 @@ public class RestfulUrlService {
     /**
      * 扫描类中的方法并生成端点
      */
-    private void scanMethodsForEndpoints(PsiClass psiClass, String classLevelPath, List<RestfulEndpointNavigationItem> endpoints) {
+    private void scanMethodsForEndpoints(PsiClass psiClass, String classLevelPath,
+            List<RestfulEndpointNavigationItem> endpoints) {
         PsiMethod[] methods = psiClass.getMethods();
-        
+
         for (PsiMethod method : methods) {
             scanMethodForEndpoints(method, classLevelPath, endpoints);
         }
@@ -839,32 +818,33 @@ public class RestfulUrlService {
     /**
      * 扫描单个方法并生成端点
      */
-    private void scanMethodForEndpoints(PsiMethod method, String classLevelPath, List<RestfulEndpointNavigationItem> endpoints) {
+    private void scanMethodForEndpoints(PsiMethod method, String classLevelPath,
+            List<RestfulEndpointNavigationItem> endpoints) {
         PsiAnnotation[] annotations = method.getAnnotations();
-        
+
         for (PsiAnnotation annotation : annotations) {
             String qualifiedName = annotation.getQualifiedName();
-            if (qualifiedName == null) continue;
-            
+            if (qualifiedName == null)
+                continue;
+
             String httpMethod = getHttpMethod(qualifiedName);
             if (httpMethod != null) {
                 // 先提取方法级别的路径
                 String methodPath = extractPathFromAnnotation(annotation);
-                System.out.println("[DEBUG] scanMethodForEndpoints - Method: " + method.getName() + ", ClassLevelPath: " + classLevelPath + ", MethodPath: " + methodPath);
-                
+
+
                 // 然后使用buildFullUrl方法来处理常量解析和路径合并
                 String fullPath = buildFullUrl(annotation, methodPath);
-                System.out.println("[DEBUG] scanMethodForEndpoints - FullPath after buildFullUrl: " + fullPath);
-                
+
+
                 if (!fullPath.isEmpty()) {
                     String className = method.getContainingClass().getName();
                     String methodName = method.getName();
-                    
+
                     RestfulEndpointNavigationItem endpoint = new RestfulEndpointNavigationItem(
-                        httpMethod, fullPath, className, methodName, method, project
-                    );
+                            httpMethod, fullPath, className, methodName, method, project);
                     endpoints.add(endpoint);
-                    System.out.println("[DEBUG] scanMethodForEndpoints - Added endpoint: " + httpMethod + " " + fullPath);
+
                 }
             }
         }
@@ -877,11 +857,11 @@ public class RestfulUrlService {
         // 从URL信息中提取类名和方法名
         Pattern pattern = Pattern.compile("\\(([^.]+)\\.([^)]+)\\)$");
         Matcher matcher = pattern.matcher(urlInfo);
-        
+
         if (matcher.find()) {
             String className = matcher.group(1);
             String methodName = matcher.group(2);
-            
+
             // 查找对应的类和方法
             PsiClass psiClass = findClassByName(className);
             if (psiClass != null) {
@@ -901,11 +881,11 @@ public class RestfulUrlService {
         if (!isJavaModuleAvailable()) {
             return null;
         }
-        
+
         try {
             FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
-            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
-                GlobalSearchScope.projectScope(project));
+            Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType,
+                    GlobalSearchScope.projectScope(project));
 
             for (VirtualFile virtualFile : javaFiles) {
                 PsiFile psiFile = psiManager.findFile(virtualFile);
@@ -928,7 +908,7 @@ public class RestfulUrlService {
         } catch (Exception e) {
             System.err.println("Error finding class by name: " + e.getMessage());
         }
-        
+
         return null;
     }
 
@@ -951,10 +931,9 @@ public class RestfulUrlService {
     private void navigateToElement(PsiElement element) {
         if (element.getContainingFile() != null && element.getContainingFile().getVirtualFile() != null) {
             OpenFileDescriptor descriptor = new OpenFileDescriptor(
-                project, 
-                element.getContainingFile().getVirtualFile(), 
-                element.getTextOffset()
-            );
+                    project,
+                    element.getContainingFile().getVirtualFile(),
+                    element.getTextOffset());
             descriptor.navigate(true);
         }
     }

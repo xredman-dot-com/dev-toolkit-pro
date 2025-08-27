@@ -33,7 +33,6 @@ public class RestfulEndpointStrategyManager {
         
         // 检查IDE环境
         String ideEnvironment = detectIDEEnvironment();
-        System.out.println("Detected IDE environment: " + ideEnvironment);
         
         // 始终添加FastAPI策略（支持所有IDE）
         strategyList.add(new FastApiEndpointScanStrategy());
@@ -42,9 +41,9 @@ public class RestfulEndpointStrategyManager {
         if (isJavaModuleAvailable()) {
             strategyList.add(new SpringEndpointScanStrategy());
             strategyList.add(new JaxRsEndpointScanStrategy());
-            System.out.println("Java module available, loaded Spring and JAX-RS strategies");
+
         } else {
-            System.out.println("Java module not available, skipping Java-specific strategies (" + ideEnvironment + " mode)");
+
         }
         
         // 按优先级排序（数值越小优先级越高）
@@ -100,11 +99,10 @@ public class RestfulEndpointStrategyManager {
             try {
                 if (strategy.isApplicable(project)) {
                     applicableStrategies.add(strategy);
-                    System.out.println("Strategy applicable: " + strategy.getStrategyName());
+
                 }
             } catch (Exception e) {
-                System.err.println("Error checking strategy applicability for " + 
-                                 strategy.getStrategyName() + ": " + e.getMessage());
+                // Strategy applicability check failed, continue with next
             }
         }
         
@@ -119,26 +117,25 @@ public class RestfulEndpointStrategyManager {
         List<RestfulEndpointScanStrategy> applicableStrategies = getApplicableStrategies();
         
         if (applicableStrategies.isEmpty()) {
-            System.out.println("No applicable strategies found, falling back to combined scan");
+
             return scanWithAllStrategies();
         }
         
         // 使用优先级最高的策略
         RestfulEndpointScanStrategy bestStrategy = applicableStrategies.get(0);
-        System.out.println("Using strategy: " + bestStrategy.getStrategyName());
+
         
         try {
             List<RestfulEndpointNavigationItem> endpoints = bestStrategy.scanEndpoints(project);
             
             // 如果最佳策略找到的端点较少，尝试其他策略补充
             if (endpoints.size() < 3 && applicableStrategies.size() > 1) {
-                System.out.println("Primary strategy found few endpoints, trying secondary strategies");
+
                 return scanWithMultipleStrategies(applicableStrategies);
             }
             
             return endpoints;
         } catch (Exception e) {
-            System.err.println("Best strategy failed: " + e.getMessage());
             return scanWithAllStrategies();
         }
     }
@@ -151,12 +148,10 @@ public class RestfulEndpointStrategyManager {
         
         for (RestfulEndpointScanStrategy strategy : strategiesToUse) {
             try {
-                System.out.println("Scanning with strategy: " + strategy.getStrategyName());
                 List<RestfulEndpointNavigationItem> endpoints = strategy.scanEndpoints(project);
                 allEndpoints.addAll(endpoints);
-                System.out.println("Found " + endpoints.size() + " endpoints with " + strategy.getStrategyName());
             } catch (Exception e) {
-                System.err.println("Strategy " + strategy.getStrategyName() + " failed: " + e.getMessage());
+                // Strategy failed, continue with next
             }
         }
         

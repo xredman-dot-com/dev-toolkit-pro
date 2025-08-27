@@ -185,19 +185,19 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
         try {
             FileType kotlinFileType = FileTypeManager.getInstance().getFileTypeByExtension("kt");
             if (kotlinFileType == null) {
-                System.out.println("Kotlin file type not found, skipping Kotlin file scan");
+
                 return;
             }
             
             Collection<VirtualFile> kotlinFiles = FileTypeIndex.getFiles(kotlinFileType, 
                 GlobalSearchScope.projectScope(project));
             
-            System.out.println("Found " + kotlinFiles.size() + " Kotlin files to scan");
+
 
             for (VirtualFile virtualFile : kotlinFiles) {
                 PsiFile psiFile = psiManager.findFile(virtualFile);
                 if (psiFile != null) {
-                    System.out.println("Scanning Kotlin file: " + virtualFile.getName());
+
                     scanKotlinFile(psiFile, endpoints, project);
                 }
             }
@@ -332,7 +332,7 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
                               httpMethod, fullPath, "", methodName, null, project);
                          endpoints.add(item);
                          
-                         System.out.println("Found Kotlin endpoint: " + httpMethod + " " + fullPath);
+
                      }
                  }
              }

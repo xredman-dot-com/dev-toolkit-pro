@@ -1,7 +1,6 @@
 package com.devtoolkit.pro.inlay;
 
 import com.devtoolkit.pro.services.RestfulUrlService;
-import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
 import com.intellij.codeInsight.hints.*;
 import com.intellij.codeInsight.hints.presentation.InlayPresentation;
 import com.intellij.codeInsight.hints.presentation.MouseButton;
@@ -10,18 +9,10 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
-import com.intellij.openapi.editor.colors.TextAttributesKey;
-import com.intellij.openapi.editor.markup.TextAttributes;
-import com.intellij.openapi.editor.markup.EffectType;
-import com.intellij.ui.JBColor;
 import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.psi.*;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.JavaTokenType;
-import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,7 +28,7 @@ import java.util.List;
 public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettings>, DumbAware {
     private static final Logger LOG = Logger.getInstance(RestfulUrlInlayHintsProvider.class);
     public static final String PROVIDER_ID = "restful.url.hints";
-    
+
     public RestfulUrlInlayHintsProvider() {
         LOG.info("[InlayHints] *** PROVIDER CONSTRUCTOR CALLED *** RestfulUrlInlayHintsProvider created");
     }
@@ -99,10 +90,10 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
     @Nullable
     @Override
     public InlayHintsCollector getCollectorFor(@NotNull PsiFile file, @NotNull Editor editor, @NotNull NoSettings settings, @NotNull InlayHintsSink sink) {
-        LOG.info("[InlayHints] *** GET COLLECTOR FOR CALLED *** file: " + file.getName() + 
-                ", language: " + file.getLanguage().getDisplayName() + 
+        LOG.info("[InlayHints] *** GET COLLECTOR FOR CALLED *** file: " + file.getName() +
+                ", language: " + file.getLanguage().getDisplayName() +
                 ", file type: " + file.getClass().getSimpleName());
-        
+
         // 支持Java和Kotlin文件
         if (!(file instanceof PsiJavaFile) && !"Kotlin".equals(file.getLanguage().getDisplayName())) {
             LOG.info("[InlayHints] File not supported, skipping: " + file.getName());
@@ -129,14 +120,14 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 if (element instanceof PsiMethod) {
                     return processJavaMethod((PsiMethod) element, sink);
                 }
-                
+
                 // 处理Kotlin函数
                 if (isKotlinFunction(element)) {
                     return processKotlinFunction(element, sink);
                 }
-                
+
                 return true;
-                
+
             } catch (Exception e) {
                 LOG.error("Error processing element in InlayHints: " + element, e);
                 return true;
@@ -152,7 +143,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 // 只处理第一个找到的Spring映射注解，避免重复显示
                 PsiAnnotation targetAnnotation = null;
                 String targetAnnotationName = null;
-                
+
                 for (PsiAnnotation annotation : annotations) {
                     String annotationName = getAnnotationName(annotation);
                     LOG.debug("[InlayHints-Java] Checking annotation: " + annotationName);
@@ -164,7 +155,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         break; // 只处理第一个找到的映射注解
                     }
                 }
-                
+
                 if (targetAnnotation == null) {
                     LOG.debug("[InlayHints-Java] No Spring mapping annotation found");
                     return true;
@@ -203,13 +194,13 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
                         new StringSelection(displayText), null
                     );
-                    
+
                     // 显示复制成功的通知
                     NotificationGroupManager.getInstance()
                         .getNotificationGroup("RestfulTool")
                         .createNotification("复制成功", "已复制: " + displayText, NotificationType.INFORMATION)
                         .notify(method.getProject());
-                    
+
                     return null;
                 });
 
@@ -217,7 +208,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 InlayPresentation withTooltip = factory.withTooltip("点击复制 RESTful URL: " + displayText, clickablePresentation);
 
                 // 在注解后添加inlay hint
-                LOG.info("[InlayHints-Java] Adding inlay hint at offset: " + targetAnnotation.getTextRange().getEndOffset() + 
+                LOG.info("[InlayHints-Java] Adding inlay hint at offset: " + targetAnnotation.getTextRange().getEndOffset() +
                         ", display text: " + displayText);
                 sink.addInlineElement(targetAnnotation.getTextRange().getEndOffset(), false, withTooltip, false);
 
@@ -227,22 +218,22 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return true;
             }
         }
-        
+
         private boolean isKotlinFunction(PsiElement element) {
             // 使用反射检测Kotlin函数
             String className = element.getClass().getName();
-            boolean isKotlinFunction = className.contains("Kt") && 
-                   (className.contains("Function") || className.contains("NamedFunction") || 
+            boolean isKotlinFunction = className.contains("Kt") &&
+                   (className.contains("Function") || className.contains("NamedFunction") ||
                     className.contains("KtNamedFunction") || className.contains("KtFunction"));
             LOG.debug("[InlayHints-Kotlin] Checking if Kotlin function: " + className + ", result: " + isKotlinFunction);
             return isKotlinFunction;
         }
-        
+
         private boolean processGenericElement(PsiElement element, InlayHintsSink sink) {
             try {
                 String elementText = element.getText();
                 if (elementText == null) return true;
-                
+
                 // 检查是否包含Spring注解（包括注释形式）
                 for (String annotation : SPRING_MAPPING_ANNOTATIONS) {
                     // 检查普通注解形式
@@ -254,31 +245,31 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         return processCommentedAnnotation(element, annotation, sink);
                     }
                 }
-                
+
                 return true;
             } catch (Exception e) {
                 return true;
             }
         }
-        
+
         private boolean isKotlinElement(PsiElement element) {
             String className = element.getClass().getName();
             return className.contains("Kt") || className.contains("kotlin");
         }
-        
+
         private boolean processElementWithAnnotation(PsiElement element, String annotationName, InlayHintsSink sink) {
             try {
                 String elementText = element.getText();
-                
+
                 // 提取注解中的路径值
                 String path = extractPathFromText(elementText, annotationName);
                 if (path == null || path.isEmpty()) {
                     return true;
                 }
-                
+
                 // 获取HTTP方法
                 String httpMethod = getHttpMethodFromAnnotation(annotationName);
-                
+
                 // 根据元素类型选择正确的URL构建方法
                 String fullUrl;
                 if (isKotlinElement(element)) {
@@ -287,59 +278,59 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     fullUrl = buildFullUrlFromJava(element, path);
                 }
                 String displayText = httpMethod + " " + fullUrl;
-                
+
                 // 创建Inlay presentation
                 PresentationFactory factory = getFactory();
                 InlayPresentation presentation = createBaselineAlignedPresentation(factory, displayText);
-                
+
                 // 添加点击事件
                 InlayPresentation clickablePresentation = factory.onClick(presentation, MouseButton.Left, (event, translated) -> {
                     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
                         new StringSelection(displayText), null
                     );
-                    
+
                     // 显示复制成功的通知
                     NotificationGroupManager.getInstance()
                         .getNotificationGroup("RestfulTool")
                         .createNotification("复制成功", "已复制: " + displayText, NotificationType.INFORMATION)
                         .notify(element.getProject());
-                    
+
                     return null;
                 });
-                
+
                 // 添加工具提示
                 InlayPresentation withTooltip = factory.withTooltip("点击复制 RESTful URL: " + displayText, clickablePresentation);
-                
+
                 // 在元素后添加inlay hint
                 sink.addInlineElement(element.getTextRange().getEndOffset(), false, withTooltip, false);
-                
+
                 return true;
             } catch (Exception e) {
                 return true;
             }
         }
-        
+
         private String extractPathFromText(String text, String annotationName) {
             try {
                 // 查找注解
                 String annotationPattern = "@" + annotationName;
                 int annotationIndex = text.indexOf(annotationPattern);
                 if (annotationIndex == -1) return null;
-                
+
                 // 查找括号内的内容
                 int openParen = text.indexOf("(", annotationIndex);
                 if (openParen == -1) return null;
-                
+
                 int closeParen = text.indexOf(")", openParen);
                 if (closeParen == -1) return null;
-                
+
                 String content = text.substring(openParen + 1, closeParen).trim();
-                
+
                 // 提取字符串值
                 if (content.startsWith("\"") && content.endsWith("\"")) {
                     return content.substring(1, content.length() - 1);
                 }
-                
+
                 // 处理value = "..."的情况
                 if (content.contains("value")) {
                     int valueIndex = content.indexOf("value");
@@ -351,19 +342,19 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         }
                     }
                 }
-                
+
                 return content.replaceAll("[\"']", "");
             } catch (Exception e) {
                 return null;
             }
         }
-        
+
         private boolean processKotlinFunction(PsiElement element, InlayHintsSink sink) {
             try {
                 // 尝试多种方法获取Kotlin函数的注解，只使用第一种成功的方法
                 List<PsiElement> annotations = new ArrayList<>();
                 boolean foundAnnotations = false;
-                
+
                 // 方法1: 尝试getAnnotationEntries
                 if (!foundAnnotations) {
                     try {
@@ -381,7 +372,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         // 忽略反射异常
                     }
                 }
-                
+
                 // 方法2: 尝试getModifierList
                 if (!foundAnnotations) {
                     try {
@@ -404,7 +395,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         // 忽略反射异常
                     }
                 }
-                
+
                 // 方法3: 直接查找子元素中的注解
                 if (!foundAnnotations) {
                     PsiElement[] children = element.getChildren();
@@ -416,54 +407,54 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         }
                     }
                 }
-                
+
                 // 处理找到的注解
                 for (PsiElement annotation : annotations) {
                     String annotationText = annotation.getText();
                     String annotationName = extractKotlinAnnotationName(annotationText);
-                    
+
                     if (!isSpringMappingAnnotation(annotationName)) {
                         continue;
                     }
-                    
+
                     // 提取路径值
                     String path = extractKotlinAnnotationValue(annotationText);
                     if (path == null || path.isEmpty()) {
                         continue;
                     }
-                    
+
                     // 获取HTTP方法
                     String httpMethod = getHttpMethodFromAnnotation(annotationName);
-                    
+
                     // 构建完整URL
                     String fullUrl = buildFullUrlFromKotlin(element, path);
                     String displayText = httpMethod + " " + fullUrl;
-                    
+
                     // 创建Inlay presentation
                     PresentationFactory factory = getFactory();
                     InlayPresentation presentation = createBaselineAlignedPresentation(factory, displayText);
-                    
+
                     // 添加点击事件
                     InlayPresentation clickablePresentation = factory.onClick(presentation, MouseButton.Left, (event, translated) -> {
                         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
                             new StringSelection(displayText), null
                         );
-                        
+
                         // 显示复制成功的通知
                         NotificationGroupManager.getInstance()
                             .getNotificationGroup("RestfulTool")
                             .createNotification("复制成功", "已复制: " + displayText, NotificationType.INFORMATION)
                             .notify(element.getProject());
-                        
+
                         return null;
                     });
-                    
+
                     // 添加工具提示
                     InlayPresentation withTooltip = factory.withTooltip("点击复制 RESTful URL: " + displayText, clickablePresentation);
-                    
+
                     // 在注解后添加inlay hint
                     sink.addInlineElement(annotation.getTextRange().getEndOffset(), false, withTooltip, false);
-                    
+
                     break; // 只处理第一个匹配的注解
                 }
             } catch (Exception e) {
@@ -471,7 +462,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
             }
             return true;
         }
-        
+
         private String extractKotlinAnnotationName(String annotationText) {
             // 从@GetMapping等注解文本中提取注解名
             if (annotationText.startsWith("@")) {
@@ -484,7 +475,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
             }
             return "";
         }
-        
+
         private String extractKotlinAnnotationValue(String annotationText) {
             // 简单的值提取，查找引号内的内容
             int firstQuote = annotationText.indexOf('"');
@@ -503,7 +494,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
         private InlayPresentation createBaselineAlignedPresentation(PresentationFactory factory, String fullUrl) {
             // 创建文字presentation
             InlayPresentation textPresentation = factory.text(fullUrl);
-            
+
             // 使用roundWithBackground来创建带浅色圆角背景的presentation
             // 这会自动应用IntelliJ的默认Inlay背景色
             return factory.roundWithBackground(textPresentation);
@@ -556,7 +547,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
             return "GET";
         }
-        
+
         private Object findKotlinClass(@NotNull PsiElement element) {
             try {
                 PsiElement current = element;
@@ -572,7 +563,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return null;
             }
         }
-        
+
         private String findKotlinClassRequestMapping(Object ktClass) {
             try {
                 LOG.info("[InlayHints-Kotlin] Searching for @RequestMapping on class: " + ktClass.getClass().getSimpleName());
@@ -599,11 +590,11 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return null;
             }
         }
-        
+
         private String getKotlinAnnotationName(Object ktAnnotationEntry) {
             try {
                 LOG.info("[InlayHints-Kotlin] Processing annotation entry: " + ktAnnotationEntry.getClass().getSimpleName());
-                
+
                 // 使用与LineMarker相同的方法：getShortName()
                 Object shortName = ktAnnotationEntry.getClass().getMethod("getShortName").invoke(ktAnnotationEntry);
                 if (shortName != null) {
@@ -611,7 +602,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     LOG.info("[InlayHints-Kotlin] Extracted annotation name via getShortName: '" + annotationName + "'");
                     return annotationName;
                 }
-                
+
                 LOG.info("[InlayHints-Kotlin] getShortName returned null");
                 return "";
             } catch (Exception e) {
@@ -619,17 +610,17 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return "";
             }
         }
-        
+
         private String buildFullUrlFromKotlin(PsiElement element, String path) {
             LOG.info("[InlayHints-Kotlin] buildFullUrlFromKotlin - Input element: " + element.getClass().getSimpleName() + ", path: " + path);
-            
+
             try {
                 // 查找类级别的@RequestMapping
                 Object ktClass = findKotlinClass(element);
                 String basePath = "";
-                
+
                 LOG.info("[InlayHints-Kotlin] Found Kotlin class: " + (ktClass != null ? ktClass.getClass().getSimpleName() : "null"));
-                
+
                 if (ktClass != null) {
                     String classPath = findKotlinClassRequestMapping(ktClass);
                     LOG.info("[InlayHints-Kotlin] Class level path: " + classPath);
@@ -648,12 +639,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
                 // 合并基础路径和方法路径
                 String fullPath = basePath + path;
-                
+
                 // 清理重复的斜杠
                 fullPath = fullPath.replaceAll("/+", "/");
-                
+
                 LOG.info("[InlayHints-Kotlin] Final path: basePath=" + basePath + ", methodPath=" + path + ", fullPath=" + fullPath);
-                
+
                 // 只返回相对路径，不包含host:port
                 return fullPath;
             } catch (Exception e) {
@@ -665,17 +656,17 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return path;
             }
         }
-        
+
         private String buildFullUrlFromJava(PsiElement element, String path) {
             LOG.info("[InlayHints-Java] buildFullUrlFromJava - Input element: " + element.getClass().getSimpleName() + ", path: " + path);
-            
+
             try {
                 // 查找类级别的@RequestMapping
                 PsiClass containingClass = PsiTreeUtil.getParentOfType(element, PsiClass.class);
                 String basePath = "";
-                
+
                 LOG.info("[InlayHints-Java] Found containing class: " + (containingClass != null ? containingClass.getName() : "null"));
-                
+
                 if (containingClass != null) {
                     PsiAnnotation classMapping = containingClass.getAnnotation("org.springframework.web.bind.annotation.RequestMapping");
                     if (classMapping != null) {
@@ -699,12 +690,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
                 // 合并基础路径和方法路径
                 String fullPath = basePath + path;
-                
+
                 // 清理重复的斜杠
                 fullPath = fullPath.replaceAll("/+", "/");
-                
+
                 LOG.info("[InlayHints-Java] Final path: basePath=" + basePath + ", methodPath=" + path + ", fullPath=" + fullPath);
-                
+
                 // 只返回相对路径，不包含host:port
                 return fullPath;
             } catch (Exception e) {
@@ -716,7 +707,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return path;
             }
         }
-        
+
         private String extractPathFromKotlinAnnotation(Object ktAnnotationEntry) {
             try {
                 LOG.info("[InlayHints-Kotlin-Debug] ========== Extracting path from Kotlin annotation ===========");
@@ -766,7 +757,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return null;
             }
         }
-        
+
         private String extractPathFromKotlinAnnotationImproved(Object ktAnnotationEntry) {
             try {
                 LOG.info("[InlayHints-Kotlin-Debug] ========== Extracting path from Kotlin annotation (Improved) ===========");
@@ -790,7 +781,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                             LOG.info("[InlayHints-Kotlin-Debug] Argument expression text: " + argumentExpression.toString());
 
                             String className = argumentExpression.getClass().getSimpleName();
-                            
+
                             // 处理KtStringTemplateExpression
                             if (className.equals("KtStringTemplateExpression")) {
                                 LOG.info("[InlayHints-Kotlin-Debug] Found KtStringTemplateExpression! Processing...");
@@ -821,7 +812,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return null;
             }
         }
-        
+
         private String evaluateKotlinExpression(Object argumentExpression) {
             try {
                 String className = argumentExpression.getClass().getSimpleName();
@@ -848,7 +839,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     } catch (Exception e) {
                         LOG.warn("[InlayHints-Kotlin-Debug] Error processing KtStringTemplateExpression", e);
                     }
-                    
+
                     // 回退方法：直接从文本中提取
                     String text = argumentExpression.toString();
                     LOG.info("[InlayHints-Kotlin-Debug] KtStringTemplateExpression text: '" + text + "'");
@@ -934,19 +925,19 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
         private String extractFromKtStringTemplateExpression(Object ktStringTemplateExpression) {
             try {
                 LOG.info("[InlayHints-Kotlin-Debug] Extracting from KtStringTemplateExpression...");
-                
+
                 // 获取模板条目
                 Object entries = ktStringTemplateExpression.getClass().getMethod("getEntries").invoke(ktStringTemplateExpression);
                 if (entries instanceof Object[]) {
                     Object[] entryArray = (Object[]) entries;
                     LOG.info("[InlayHints-Kotlin-Debug] Found " + entryArray.length + " template entries");
-                    
+
                     StringBuilder result = new StringBuilder();
                     for (int i = 0; i < entryArray.length; i++) {
                         Object entry = entryArray[i];
                         String entryClassName = entry.getClass().getSimpleName();
                         LOG.info("[InlayHints-Kotlin-Debug] Processing entry " + i + ": " + entryClassName);
-                        
+
                         if (entryClassName.equals("KtLiteralStringTemplateEntry")) {
                             // 使用反射获取文本内容
                             try {
@@ -967,12 +958,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                             result.append(entry.toString());
                         }
                     }
-                    
+
                     String finalResult = result.toString();
                     LOG.info("[InlayHints-Kotlin-Debug] Final KtStringTemplateExpression result: " + finalResult);
                     return finalResult;
                 }
-                
+
                 LOG.info("[InlayHints-Kotlin-Debug] No entries found in KtStringTemplateExpression");
                 return null;
             } catch (Exception e) {
@@ -980,78 +971,78 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 return null;
             }
         }
-        
+
         private boolean processCommentedAnnotation(PsiElement element, String annotationName, InlayHintsSink sink) {
             try {
                 String elementText = element.getText();
-                
+
                 // 提取注释中注解的路径值
                 String path = extractPathFromCommentedAnnotation(elementText, annotationName);
                 if (path == null || path.isEmpty()) {
                     return true;
                 }
-                
+
                 // 获取HTTP方法
                 String httpMethod = getHttpMethodFromAnnotation(annotationName);
-                
+
                 // 构建完整URL - 使用与Kotlin相同的逻辑
                 String fullUrl = buildFullUrlFromJava(element, path);
                 String displayText = httpMethod + " " + fullUrl;
-                
+
                 // 创建Inlay presentation
                 PresentationFactory factory = getFactory();
                 InlayPresentation presentation = createBaselineAlignedPresentation(factory, displayText);
-                
+
                 // 添加点击事件
                 InlayPresentation clickablePresentation = factory.onClick(presentation, MouseButton.Left, (event, translated) -> {
                     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
                         new StringSelection(displayText), null
                     );
-                    
+
                     // 显示复制成功的通知
                     NotificationGroupManager.getInstance()
                         .getNotificationGroup("RestfulTool")
                         .createNotification("复制成功", "已复制: " + displayText, NotificationType.INFORMATION)
                         .notify(element.getProject());
-                    
+
                     return null;
                 });
-                
+
                 // 添加工具提示
                 InlayPresentation withTooltip = factory.withTooltip("点击复制 RESTful URL: " + displayText, clickablePresentation);
-                
+
                 // 在元素后添加inlay hint
                 sink.addInlineElement(element.getTextRange().getEndOffset(), false, withTooltip, false);
-                
+
                 return true;
             } catch (Exception e) {
                 return true;
             }
         }
-        
+
         private String extractPathFromCommentedAnnotation(String text, String annotationName) {
             try {
                 // 查找注释中的注解
                 String annotationPattern = "// @" + annotationName;
                 int annotationIndex = text.indexOf(annotationPattern);
                 if (annotationIndex == -1) return null;
-                
+
                 // 查找括号内的内容
                 int openParen = text.indexOf("(", annotationIndex);
                 if (openParen == -1) return null;
-                
+
                 int closeParen = text.indexOf(")", openParen);
                 if (closeParen == -1) return null;
-                
+
                 String content = text.substring(openParen + 1, closeParen).trim();
-                
+
                 // 移除引号
                 if (content.startsWith("\"") && content.endsWith("\"")) {
                     content = content.substring(1, content.length() - 1);
                 } else if (content.startsWith("'") && content.endsWith("'")) {
                     content = content.substring(1, content.length() - 1);
                 }
-                
+
                 return content;
             } catch (Exception e) {
                 return null;

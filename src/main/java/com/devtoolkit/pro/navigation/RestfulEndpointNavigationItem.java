@@ -1,21 +1,11 @@
 package com.devtoolkit.pro.navigation;
 
-import com.devtoolkit.pro.utils.GitRepositoryUtil;
 import com.devtoolkit.pro.icons.HttpMethodIconProvider;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiMethod;
-import com.intellij.openapi.ide.CopyPasteManager;
-import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import org.jetbrains.annotations.Nullable;
-
 import javax.swing.*;
-import java.awt.datatransfer.StringSelection;
 
 /**
  * RESTful端点导航项
@@ -29,8 +19,8 @@ public class RestfulEndpointNavigationItem implements NavigationItem {
     private final PsiMethod psiMethod;
     private final Project project;
 
-    public RestfulEndpointNavigationItem(String httpMethod, String path, 
-                                       String className, String methodName, 
+    public RestfulEndpointNavigationItem(String httpMethod, String path,
+                                       String className, String methodName,
                                        PsiMethod psiMethod, Project project) {
         this.httpMethod = httpMethod;
         this.path = path;

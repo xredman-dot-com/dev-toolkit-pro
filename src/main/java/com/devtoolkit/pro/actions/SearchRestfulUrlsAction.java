@@ -1,6 +1,5 @@
 package com.devtoolkit.pro.actions;
 
-import com.intellij.ide.actions.SearchEverywhereAction;
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
