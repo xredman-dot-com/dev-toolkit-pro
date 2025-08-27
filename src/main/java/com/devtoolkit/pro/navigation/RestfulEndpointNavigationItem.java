@@ -42,7 +42,7 @@ public class RestfulEndpointNavigationItem implements NavigationItem {
 
     @Override
     public String getName() {
-        return httpMethod + " " + path;
+        return path;
     }
 
     @Override
