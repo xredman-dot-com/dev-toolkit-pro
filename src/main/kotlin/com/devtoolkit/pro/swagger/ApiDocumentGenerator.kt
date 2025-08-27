@@ -7,6 +7,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
+ * 进度回调接口
+ */
+interface ProgressCallback {
+    fun onProgress(current: Int, total: Int, currentApi: String)
+}
+
+/**
  * API文档生成器
  */
 class ApiDocumentGenerator {
@@ -14,7 +21,7 @@ class ApiDocumentGenerator {
     /**
      * 生成API文档
      */
-    fun generate(projectName: String, swaggerUrl: String, outputPath: String) {
+    fun generate(projectName: String, swaggerUrl: String, outputPath: String, progressCallback: ProgressCallback? = null) {
         val parser = SwaggerParser()
         val apiGroups = parser.parse(swaggerUrl)
         
@@ -23,13 +30,13 @@ class ApiDocumentGenerator {
             outputFile.parentFile.mkdirs()
         }
         
-        buildApiDocs(projectName, apiGroups, outputFile)
+        buildApiDocs(projectName, apiGroups, outputFile, progressCallback)
     }
     
     /**
      * 构建API文档
      */
-    private fun buildApiDocs(projectName: String, apiGroups: Map<String, List<SwaggerApi>>, outputFile: File) {
+    private fun buildApiDocs(projectName: String, apiGroups: Map<String, List<SwaggerApi>>, outputFile: File, progressCallback: ProgressCallback? = null) {
         val builder = WordDocumentBuilder.newBuilder()
         
         // 设置页眉和标题
@@ -47,11 +54,17 @@ class ApiDocumentGenerator {
             .kv("文档版本", "1.0")
             .end()
         
+        // 计算总API数量
+        val totalApis = apiGroups.values.sumOf { it.size }
+        var currentApiIndex = 0
+        
         // 遍历API分组
         apiGroups.forEach { (groupName, apis) ->
             builder.h1(groupName)
             
             apis.forEach { api ->
+                currentApiIndex++
+                progressCallback?.onProgress(currentApiIndex, totalApis, api.summary.ifEmpty { "未命名接口" })
                 buildApi(builder, api)
             }
         }
@@ -64,120 +77,76 @@ class ApiDocumentGenerator {
      */
     private fun buildApi(builder: WordDocumentBuilder, api: SwaggerApi) {
         // API基本信息
-        builder.h2("${api.summary.ifEmpty { "未命名接口" }} (${api.method.uppercase()} ${api.path})")
+        builder.h2(api.summary.ifEmpty { "未命名接口" })
         
-        val tableBuilder = builder.table(6, 2)
-        tableBuilder.kv("接口地址", api.path)
-            .newRow()
-            .kv("请求方式", api.method.uppercase())
-            .newRow()
-            .kv("接口描述", api.description.ifEmpty { api.summary })
-            .newRow()
-            .kv("操作ID", api.operationId)
-            .newRow()
-            .kv("消费类型", api.consumes.joinToString(", "))
-            .newRow()
-            .kv("生产类型", api.produces.joinToString(", "))
-            .end()
+        // 计算表格行数：基本信息5行 + 参数表头1行 + 参数行数 + 响应表头1行 + 响应行数
+        val paramRows = if (api.parameters.isNotEmpty()) api.parameters.size + 1 else 0
+        val responseRows = if (api.responses.isNotEmpty()) api.responses.size + 1 else 0
+        val totalRows = 5 + paramRows + responseRows
         
-        // 请求参数
+        val tableBuilder = builder.table(totalRows, 6)
+        
+        // API基本信息部分
+        tableBuilder.mergedCell("接口地址", 1, true)
+            .mergedCell(api.path, 5, false)
+            .newRow()
+            .hCell("请求方式")
+            .mergedCell(api.method.uppercase(), 2, false)
+            .hCell("操作ID")
+            .mergedCell(api.operationId, 2, false)
+            .newRow()
+            .hCell("消费类型")
+            .mergedCell(api.consumes.joinToString(", "), 2, false)
+            .hCell("生产类型")
+            .mergedCell(api.produces.joinToString(", "), 2, false)
+            .newRow()
+            .mergedCell("接口描述", 1, true)
+            .mergedCell(api.description.ifEmpty { api.summary }, 5, false)
+        
+        // 请求参数部分
         if (api.parameters.isNotEmpty()) {
-            builder.h3("请求参数")
-            buildApiParameters(builder, api.parameters)
-        }
-        
-        // 响应结果
-        if (api.responses.isNotEmpty()) {
-            builder.h3("响应结果")
-            buildApiResponses(builder, api.responses)
-        }
-    }
-    
-    /**
-     * 构建API参数表格
-     */
-    private fun buildApiParameters(builder: WordDocumentBuilder, parameters: List<Parameter>) {
-        val tableBuilder = builder.table(parameters.size + 1, 6)
-        
-        // 表头
-        tableBuilder.hCell("参数名称")
-            .hCell("参数位置")
-            .hCell("参数类型")
-            .hCell("是否必需")
-            .hCell("参数描述")
-            .hCell("示例值")
-        
-        // 参数行
-        parameters.forEach { param: Parameter ->
             tableBuilder.newRow()
-                .cell(param.name)
-                .cell(param.`in`)
-                .cell(getParameterType(param))
-                .cell(if (param.required) "是" else "否")
-                .cell(param.description)
-                .cell(getParameterExample(param))
-        }
-        
-        tableBuilder.end()
-    }
-    
-    /**
-     * 构建API响应表格
-     */
-    private fun buildApiResponses(builder: WordDocumentBuilder, responses: List<Response>) {
-        val tableBuilder = builder.table(responses.size + 1, 3)
-        
-        // 表头
-        tableBuilder.hCell("状态码")
-            .hCell("描述")
-            .hCell("数据结构")
-        
-        // 响应行
-        responses.forEach { response: Response ->
-            tableBuilder.newRow()
-                .cell(response.code.toString())
-                .cell(response.description)
-                .cell(response.refDefinition?.title ?: "")
-        }
-        
-        tableBuilder.end()
-        
-        // 详细数据结构
-        responses.forEach { response: Response ->
-            response.refDefinition?.let { definition ->
-                if (definition.properties().isNotEmpty()) {
-                    builder.h4("${response.code.toString()} - ${definition.title.ifEmpty { "数据结构" }}")
-                    buildDefinitionProperties(builder, definition.properties())
-                }
+                .mergedCell("请求参数", 6, true)
+                .newRow()
+                .hCell("参数名称")
+                .hCell("参数位置")
+                .hCell("参数类型")
+                .hCell("是否必需")
+                .hCell("参数描述")
+                .hCell("示例值")
+            
+            api.parameters.forEach { param ->
+                tableBuilder.newRow()
+                    .cell(param.name)
+                    .cell(param.`in`)
+                    .cell(getParameterType(param))
+                    .cell(if (param.required) "是" else "否")
+                    .cell(param.description)
+                    .cell(getParameterExample(param))
             }
         }
-    }
-    
-    /**
-     * 构建定义属性表格
-     */
-    private fun buildDefinitionProperties(builder: WordDocumentBuilder, properties: List<DefinitionProperty>) {
-        val tableBuilder = builder.table(properties.size + 1, 5)
         
-        // 表头
-        tableBuilder.hCell("字段名称")
-            .hCell("字段类型")
-            .hCell("是否必需")
-            .hCell("字段描述")
-            .hCell("示例值")
-        
-        // 属性行
-        properties.forEach { prop: DefinitionProperty ->
+        // 响应结果部分
+        if (api.responses.isNotEmpty()) {
             tableBuilder.newRow()
-                .cell(prop.name)
-                .cell(getPropertyType(prop))
-                .cell(if (prop.required) "是" else "否")
-                .cell(prop.description)
-                .cell(getPropertyExample(prop))
+                .mergedCell("响应结果", 6, true)
+                .newRow()
+                .hCell("状态码")
+                .hCell("描述")
+                .mergedCell("数据结构", 4, true)
+            
+            api.responses.forEach { response ->
+                tableBuilder.newRow()
+                    .cell(response.code.toString())
+                    .cell(response.description)
+                    .mergedCell(response.refDefinition?.title ?: "", 4, false)
+            }
         }
         
         tableBuilder.end()
     }
+    
+
     
     /**
      * 获取参数类型

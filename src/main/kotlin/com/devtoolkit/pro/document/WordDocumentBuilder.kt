@@ -12,11 +12,19 @@ import java.math.BigInteger
  */
 class WordDocumentBuilder {
     companion object {
-        const val FONT_EAST_ASIA = "Microsoft YaHei"
-        const val FONT_ASCII = "Arial"
+        // 公文标准字体
+        const val FONT_EAST_ASIA = "仿宋_GB2312"
+        const val FONT_ASCII = "Times New Roman"
         const val FONT_HANSI = "Times New Roman"
-        const val FONT_SONTI = "SimSun"
+        const val FONT_SONTI = "仿宋_GB2312"
         const val FONT_COURIER_NEW = "Courier New"
+        
+        // 公文标准字号
+        const val FONT_SIZE_TITLE = 22  // 二号
+        const val FONT_SIZE_H1 = 16     // 三号
+        const val FONT_SIZE_H2 = 14     // 四号
+        const val FONT_SIZE_NORMAL = 12 // 小四号
+        const val FONT_SIZE_SMALL = 10  // 五号
         
         fun newBuilder(): WordDocumentBuilder = WordDocumentBuilder()
     }
@@ -32,13 +40,13 @@ class WordDocumentBuilder {
      * 初始化样式
      */
     private fun initializeStyles() {
-        createStyle("标题 1", 1, 36)
-        createStyle("标题 2", 2, 32)
-        createStyle("标题 3", 3, 28)
-        createStyle("标题 4", 4, 26)
-        createStyle("标题 5", 5, 24)
-        createStyle("标题 6", 6, 18)
-        createStyle("标题 7", 7, 16)
+        createStyle("标题 1", 1, FONT_SIZE_H1)
+        createStyle("标题 2", 2, FONT_SIZE_H2)
+        createStyle("标题 3", 3, FONT_SIZE_NORMAL)
+        createStyle("标题 4", 4, FONT_SIZE_NORMAL)
+        createStyle("标题 5", 5, FONT_SIZE_SMALL)
+        createStyle("标题 6", 6, FONT_SIZE_SMALL)
+        createStyle("标题 7", 7, FONT_SIZE_SMALL)
     }
     
     /**
@@ -88,7 +96,7 @@ class WordDocumentBuilder {
         val titleRun = titleP.createRun()
         titleRun.setText(title)
         titleRun.fontFamily = FONT_EAST_ASIA
-        titleRun.fontSize = 26
+        titleRun.fontSize = FONT_SIZE_TITLE
         titleP.spacingBetween = 1.5
         titleP.borderBottom = Borders.THIN_THICK_LARGE_GAP
         
@@ -98,7 +106,7 @@ class WordDocumentBuilder {
         val subTitleRun = subTitleP.createRun()
         subTitleRun.setText(subTitle)
         subTitleRun.fontFamily = FONT_EAST_ASIA
-        subTitleRun.fontSize = 22
+        subTitleRun.fontSize = FONT_SIZE_TITLE
         subTitleP.spacingBetween = 2.0
         subTitleP.borderTop = Borders.THICK_THIN_SMALL_GAP
         
@@ -230,6 +238,19 @@ class WordDocumentBuilder {
         
         init {
             table.setCellMargins(0, 10, 0, 50)
+            // 设置表格宽度为100%
+            setTableWidth()
+        }
+        
+        /**
+         * 设置表格宽度为100%
+         */
+        private fun setTableWidth() {
+            val ctTbl = table.ctTbl
+            val ctTblPr = if (ctTbl.tblPr != null) ctTbl.tblPr else ctTbl.addNewTblPr()
+            val ctTblWidth = if (ctTblPr.tblW != null) ctTblPr.tblW else ctTblPr.addNewTblW()
+            ctTblWidth.type = STTblWidth.PCT
+            ctTblWidth.w = BigInteger.valueOf(5000) // 100% = 5000
         }
         
         /**
@@ -293,8 +314,6 @@ class WordDocumentBuilder {
             val ctTc = tCell.ctTc
             val ctTcPr = if (ctTc.isSetTcPr) ctTc.tcPr else ctTc.addNewTcPr()
             
-            val merge = CTHMerge.Factory.newInstance()
-            merge.`val` = STMerge.CONTINUE
             val cthMerge = if (ctTcPr.isSetHMerge) ctTcPr.hMerge else ctTcPr.addNewHMerge()
             cthMerge.`val` = STMerge.RESTART
             
@@ -306,6 +325,21 @@ class WordDocumentBuilder {
                 val hMerge = if (tcPr.isSetHMerge) tcPr.hMerge else tcPr.addNewHMerge()
                 hMerge.`val` = STMerge.CONTINUE
             }
+            return this
+        }
+        
+        /**
+         * 添加合并单元格（跨列）
+         */
+        fun mergedCell(text: String, colspan: Int, isHeader: Boolean = false): WordTableBuilder {
+            val tr = table.getRow(row)
+            val tc = tr.getCell(col)
+            setCell(tc, text, isHeader)
+            
+            if (colspan > 1) {
+                mergeHCell(col, col + colspan - 1)
+            }
+            col += colspan
             return this
         }
         
@@ -346,7 +380,7 @@ class WordDocumentBuilder {
             if (text.isNotEmpty()) {
                 run.setText(text)
             }
-            run.fontSize = 10
+            run.fontSize = if (isHeader) FONT_SIZE_SMALL else FONT_SIZE_SMALL
             if (isHeader) {
                 run.isBold = true
             }
