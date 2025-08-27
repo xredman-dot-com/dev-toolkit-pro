@@ -14,6 +14,8 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.util.Collection;
 import java.util.List;
@@ -887,8 +889,22 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
 
         @Override
         public void navigate(MouseEvent e, PsiElement elt) {
-            // 复制URL到剪贴板
-            CopyPasteManager.getInstance().setContents(new StringSelection(url));
+            // 创建弹出菜单
+            JPopupMenu popupMenu = new JPopupMenu();
+            
+            // 添加"拷贝URL"菜单项
+            JMenuItem copyUrlItem = new JMenuItem("拷贝URL");
+            copyUrlItem.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent actionEvent) {
+                    // 复制URL到剪贴板
+                    CopyPasteManager.getInstance().setContents(new StringSelection(url));
+                }
+            });
+            popupMenu.add(copyUrlItem);
+            
+            // 显示弹出菜单
+            popupMenu.show(e.getComponent(), e.getX(), e.getY());
         }
     }
 }
