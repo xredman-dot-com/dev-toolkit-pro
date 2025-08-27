@@ -11,6 +11,7 @@ import com.intellij.notification.NotificationType;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.icons.AllIcons;
+import com.intellij.ui.JBColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -1500,45 +1501,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     /**
      * 为菜单项添加悬停效果
      */
-    private static void addHoverEffect(JMenuItem menuItem) {
-        // 设置菜单项的默认样式
-        menuItem.setOpaque(true);
-        menuItem.setBorderPainted(false);
-        menuItem.setFocusPainted(false);
-        
-        // 使用IntelliJ IDEA的标准菜单颜色
-        Color tempDefaultBackground = UIManager.getColor("PopupMenu.background");
-        Color tempHoverBackground = UIManager.getColor("List.selectionBackground");
-        Color tempDefaultForeground = UIManager.getColor("PopupMenu.foreground");
-        Color tempHoverForeground = UIManager.getColor("List.selectionForeground");
-        
-        // 如果系统颜色为null，使用IntelliJ主题的备用颜色
-        final Color defaultBackground = tempDefaultBackground != null ? tempDefaultBackground : new Color(0x3C3F41);
-        final Color hoverBackground = tempHoverBackground != null ? tempHoverBackground : new Color(0x4B6EAF);
-        final Color defaultForeground = tempDefaultForeground != null ? tempDefaultForeground : new Color(0xBBBBBB);
-        final Color hoverForeground = tempHoverForeground != null ? tempHoverForeground : Color.WHITE;
-        
-        // 设置初始颜色
-        menuItem.setBackground(defaultBackground);
-        menuItem.setForeground(defaultForeground);
-        
-        // 添加鼠标监听器
-        menuItem.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                menuItem.setBackground(hoverBackground);
-                menuItem.setForeground(hoverForeground);
-                menuItem.repaint();
-            }
-            
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                menuItem.setBackground(defaultBackground);
-                menuItem.setForeground(defaultForeground);
-                menuItem.repaint();
-            }
-        });
-    }
+
 
     private static class GutterIconNavigationHandler implements com.intellij.codeInsight.daemon.GutterIconNavigationHandler<PsiElement> {
         private final String url;
@@ -1556,7 +1519,6 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
 
             // 添加"拷贝URL"菜单项
             JMenuItem copyUrlItem = new JMenuItem("拷贝URL", COPY_URL_ICON);
-            addHoverEffect(copyUrlItem);
             copyUrlItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
@@ -1574,7 +1536,6 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
 
             // 添加"复制Markdown"菜单项
             JMenuItem copyMarkdownItem = new JMenuItem("复制Markdown", COPY_MARKDOWN_ICON);
-            addHoverEffect(copyMarkdownItem);
             copyMarkdownItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
@@ -1599,7 +1560,6 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
 
             // 添加"复制curl"菜单项
             JMenuItem copyCurlItem = new JMenuItem("复制curl", COPY_CURL_ICON);
-            addHoverEffect(copyCurlItem);
             copyCurlItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
