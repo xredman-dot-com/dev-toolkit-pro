@@ -6,6 +6,7 @@ import com.intellij.icons.AllIcons;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
 import com.intellij.openapi.ide.CopyPasteManager;
+import com.intellij.openapi.util.IconLoader;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
@@ -21,6 +22,7 @@ import java.util.HashSet;
 
 public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     private static final Logger LOG = Logger.getInstance(RestfulUrlLineMarkerProvider.class);
+    private static final Icon PLUGIN_ICON = IconLoader.getIcon("/icons/pluginIcon.svg", RestfulUrlLineMarkerProvider.class);
 
     private static final String[] SPRING_MAPPING_ANNOTATIONS = {
         "GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
@@ -115,7 +117,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         return new LineMarkerInfo<>(
             element,
             element.getTextRange(),
-            AllIcons.Actions.Copy, // 使用复制图标
+            PLUGIN_ICON, // 使用插件自定义图标
             psiElement -> "Copy RESTful URL: " + fullUrl,
             new GutterIconNavigationHandler(fullUrl),
             GutterIconRenderer.Alignment.RIGHT,
@@ -172,7 +174,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             return new LineMarkerInfo<>(
                 element,
                 element.getTextRange(),
-                AllIcons.Actions.Copy, // 使用复制图标
+                PLUGIN_ICON, // 使用插件自定义图标
                 psiElement -> "Copy RESTful URL: " + fullUrl,
                 new GutterIconNavigationHandler(fullUrl),
                 GutterIconRenderer.Alignment.RIGHT,
@@ -282,26 +284,26 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             // 获取注解的父元素
             PsiElement annotationElement = (PsiElement) ktAnnotationEntry;
             PsiElement parent = annotationElement.getParent();
-            
+
             while (parent != null) {
                 String parentClassName = parent.getClass().getSimpleName();
                 LOG.debug("[LineMarker-Kotlin-Debug] Checking parent: " + parentClassName);
-                
+
                 // 检查是否是方法
                 if ("KtNamedFunction".equals(parentClassName) || "KtFunction".equals(parentClassName)) {
                     LOG.info("[LineMarker-Kotlin-Debug] Found method parent: " + parentClassName);
                     return true;
                 }
-                
+
                 // 检查是否是类
                 if ("KtClass".equals(parentClassName)) {
                     LOG.info("[LineMarker-Kotlin-Debug] Found class parent: " + parentClassName);
                     return false;
                 }
-                
+
                 parent = parent.getParent();
             }
-            
+
             return false;
         } catch (Exception e) {
             LOG.warn("[LineMarker-Kotlin] Exception in isAnnotationOnMethod: " + e.getMessage());
