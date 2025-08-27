@@ -111,7 +111,11 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             return null;
         }
 
-
+        // 检查注解是否在方法上，而不是在类上
+        if (!isAnnotationOnMethod(annotation)) {
+            LOG.debug("[LineMarker-Java] Annotation is on class, not method, skipping");
+            return null;
+        }
 
         // 获取注解的值
         String path = extractPathFromAnnotation(annotation);
@@ -163,7 +167,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             }
 
             // 检查注解是否在方法上，而不是在类上
-            if (!isAnnotationOnMethod(ktAnnotationEntry)) {
+            if (!isKotlinAnnotationOnMethod(ktAnnotationEntry)) {
                 LOG.info("[LineMarker-Kotlin-Debug] Annotation is on class level, skipping");
                 return null;
             }
@@ -291,7 +295,23 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         }
     }
 
-    private boolean isAnnotationOnMethod(Object ktAnnotationEntry) {
+    /**
+     * 检查Java注解是否在方法上
+     */
+    private boolean isAnnotationOnMethod(PsiAnnotation annotation) {
+        PsiAnnotationOwner owner = annotation.getOwner();
+        if (owner instanceof PsiModifierList) {
+            PsiElement parent = ((PsiModifierList) owner).getParent();
+            // 检查父元素是否是方法
+            return parent instanceof PsiMethod;
+        }
+        return false;
+    }
+
+    /**
+     * 检查Kotlin注解是否在方法上
+     */
+    private boolean isKotlinAnnotationOnMethod(Object ktAnnotationEntry) {
         try {
             // 获取注解的父元素
             PsiElement annotationElement = (PsiElement) ktAnnotationEntry;
