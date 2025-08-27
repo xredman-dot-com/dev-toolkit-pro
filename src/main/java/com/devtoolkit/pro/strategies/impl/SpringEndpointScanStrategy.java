@@ -2,6 +2,7 @@ package com.devtoolkit.pro.strategies.impl;
 
 import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
 import com.devtoolkit.pro.strategies.RestfulEndpointScanStrategy;
+import com.devtoolkit.pro.services.RestfulUrlService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
@@ -40,6 +41,7 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
     private static final Pattern PATH_PATTERN = Pattern.compile("path\\s*=\\s*\"([^\"]*)\"");
     
     private PsiManager psiManager;
+    private RestfulUrlService urlService;
     
     @Override
     public String getStrategyName() {
@@ -67,6 +69,7 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
     @Override
     public List<RestfulEndpointNavigationItem> scanEndpoints(Project project) {
         this.psiManager = PsiManager.getInstance(project);
+        this.urlService = new RestfulUrlService(project);
         List<RestfulEndpointNavigationItem> endpoints = new ArrayList<>();
         
         try {
@@ -298,7 +301,7 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
             String httpMethod = getHttpMethod(qualifiedName);
             if (httpMethod != null) {
                 String methodPath = extractPathFromAnnotation(annotation);
-                String fullPath = combinePaths(classLevelPath, methodPath);
+                String fullPath = urlService.buildFullUrl(annotation, methodPath);
                 
                 if (!fullPath.isEmpty()) {
                     String className = method.getContainingClass().getName();
@@ -315,18 +318,11 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
     
     /**
      * 提取类级别的路径
+     * 注意：由于现在使用RestfulUrlService.buildFullUrl来处理完整路径构建，
+     * 该方法返回空字符串，避免重复处理类级别路径
      */
     private String extractClassLevelPath(PsiClass psiClass) {
-        PsiAnnotation[] annotations = psiClass.getAnnotations();
-        
-        for (PsiAnnotation annotation : annotations) {
-            String qualifiedName = annotation.getQualifiedName();
-            if (qualifiedName != null && 
-                (qualifiedName.endsWith("RequestMapping") || qualifiedName.endsWith("Path"))) {
-                return extractPathFromAnnotation(annotation);
-            }
-        }
-        
+        // buildFullUrl会自动处理类级别的@RequestMapping，所以这里返回空字符串
         return "";
     }
     

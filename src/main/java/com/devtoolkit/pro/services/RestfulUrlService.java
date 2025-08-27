@@ -21,6 +21,12 @@ import com.intellij.psi.impl.source.JavaDummyHolder;
 import com.intellij.psi.impl.source.JavaDummyElement;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.psi.tree.IElementType;
+import com.intellij.psi.JavaTokenType;
+import com.intellij.psi.PsiConstantEvaluationHelper;
+import com.intellij.psi.JavaPsiFacade;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -200,97 +206,151 @@ public class RestfulUrlService {
     }
 
     /**
-     * 从注解中提取路径
+     * 从注解中提取路径，支持常量解析
+     * 这是统一的常量解析方法，供所有组件使用
      */
-    private String extractPathFromAnnotation(PsiAnnotation annotation) {
-        // 首先尝试从注解属性中获取值
-        PsiAnnotationMemberValue valueAttr = annotation.findAttributeValue("value");
-        if (valueAttr != null) {
-            String path = evaluateConstantExpression(valueAttr);
-            if (path != null && !path.isEmpty()) {
-                return path;
+    public String extractPathFromAnnotation(PsiAnnotation annotation) {
+        if (annotation == null) {
+            System.out.println("[DEBUG] extractPathFromAnnotation - annotation is null");
+            return "";
+        }
+
+        System.out.println("[DEBUG] extractPathFromAnnotation - Processing annotation: " + annotation.getQualifiedName());
+
+        PsiAnnotationMemberValue value = annotation.findAttributeValue("value");
+        if (value == null) {
+            value = annotation.findAttributeValue("path");
+        }
+
+        if (value != null) {
+            System.out.println("[DEBUG] extractPathFromAnnotation - Found attribute value: " + value.getText());
+            // 尝试使用PSI常量求值来解析表达式
+            Object constantValue = evaluateConstantExpression(value);
+            System.out.println("[DEBUG] extractPathFromAnnotation - Constant evaluation result: " + constantValue);
+            if (constantValue != null) {
+                return constantValue.toString();
+            }
+
+            // 回退到直接字面量处理
+            if (value instanceof PsiLiteralExpression) {
+                Object literalValue = ((PsiLiteralExpression) value).getValue();
+                System.out.println("[DEBUG] extractPathFromAnnotation - Literal value: " + literalValue);
+                return literalValue != null ? literalValue.toString() : null;
             }
         }
-        
-        PsiAnnotationMemberValue pathAttr = annotation.findAttributeValue("path");
-        if (pathAttr != null) {
-            String path = evaluateConstantExpression(pathAttr);
-            if (path != null && !path.isEmpty()) {
-                return path;
-            }
-        }
-        
+
         // 回退到原有的正则表达式方法
         String annotationText = annotation.getText();
+        System.out.println("[DEBUG] extractPathFromAnnotation - Falling back to regex parsing on: " + annotationText);
         
         // 尝试提取value属性
         Matcher valueMatcher = VALUE_PATTERN.matcher(annotationText);
         if (valueMatcher.find()) {
+            System.out.println("[DEBUG] extractPathFromAnnotation - Regex found value: " + valueMatcher.group(1));
             return valueMatcher.group(1);
         }
         
         // 尝试提取path属性
         Matcher pathMatcher = PATH_PATTERN.matcher(annotationText);
         if (pathMatcher.find()) {
+            System.out.println("[DEBUG] extractPathFromAnnotation - Regex found path: " + pathMatcher.group(1));
             return pathMatcher.group(1);
         }
         
         // 尝试提取直接的字符串值
         Matcher urlMatcher = URL_PATTERN.matcher(annotationText);
         if (urlMatcher.find()) {
+            System.out.println("[DEBUG] extractPathFromAnnotation - Regex found URL: " + urlMatcher.group(1));
             return urlMatcher.group(1);
         }
         
+        System.out.println("[DEBUG] extractPathFromAnnotation - No path found, returning empty string");
         return "";
     }
     
     /**
-     * 计算常量表达式的值
+     * 使用PSI常量求值来解析常量表达式，如 API.API_V1_PREFIX + "/fetch"
+     * 这是统一的常量解析方法，供所有组件使用
      */
-    private String evaluateConstantExpression(PsiAnnotationMemberValue value) {
-        if (value == null) return null;
-        
-        // 处理字符串字面量
-        if (value instanceof PsiLiteralExpression) {
-            Object literalValue = ((PsiLiteralExpression) value).getValue();
-            return literalValue instanceof String ? (String) literalValue : null;
-        }
-        
-        // 处理二元表达式（如字符串拼接）
-        if (value instanceof PsiBinaryExpression) {
-            PsiBinaryExpression binaryExpr = (PsiBinaryExpression) value;
-            if (binaryExpr.getOperationTokenType().toString().equals("PLUS")) {
-                String left = evaluateConstantExpression(binaryExpr.getLOperand());
-                String right = evaluateConstantExpression(binaryExpr.getROperand());
-                if (left != null && right != null) {
-                    return left + right;
-                }
+    public Object evaluateConstantExpression(PsiElement element) {
+        try {
+            // 获取PSI常量求值助手
+            PsiConstantEvaluationHelper evaluationHelper =
+                JavaPsiFacade.getInstance(element.getProject()).getConstantEvaluationHelper();
+
+            // 尝试计算常量表达式的值
+            Object result = evaluationHelper.computeConstantExpression(element, false);
+
+            // 如果标准求值失败，尝试手动解析常量引用
+            if (result == null && element instanceof PsiExpression) {
+                result = resolveConstantReference((PsiExpression) element);
             }
+
+            return result;
+        } catch (Exception e) {
+            // 如果求值失败，尝试手动解析
+            if (element instanceof PsiExpression) {
+                return resolveConstantReference((PsiExpression) element);
+            }
+            return null;
         }
-        
-        // 处理常量引用
-        if (value instanceof PsiReferenceExpression) {
-            return resolveConstantReference((PsiReferenceExpression) value);
-        }
-        
-        return null;
     }
     
     /**
-     * 解析常量引用
+     * 手动解析常量引用，特别是第三方jar包中的常量
+     * 这是统一的常量解析方法，供所有组件使用
      */
-    private String resolveConstantReference(PsiReferenceExpression refExpr) {
-        PsiElement resolved = refExpr.resolve();
-        if (resolved instanceof PsiField) {
-            PsiField field = (PsiField) resolved;
-            if (field.hasModifierProperty(PsiModifier.STATIC) && field.hasModifierProperty(PsiModifier.FINAL)) {
-                PsiExpression initializer = field.getInitializer();
-                if (initializer != null) {
-                    return evaluateConstantExpression(initializer);
+    public Object resolveConstantReference(PsiExpression expression) {
+        try {
+            // 处理二元表达式（如 API.API_V1_PREFIX + "/fetch"）
+            if (expression instanceof PsiBinaryExpression) {
+                PsiBinaryExpression binaryExpr = (PsiBinaryExpression) expression;
+                if (binaryExpr.getOperationTokenType() == JavaTokenType.PLUS) {
+                    Object left = resolveConstantReference(binaryExpr.getLOperand());
+                    Object right = resolveConstantReference(binaryExpr.getROperand());
+                    if (left != null && right != null) {
+                        return left.toString() + right.toString();
+                    }
                 }
             }
+
+            // 处理引用表达式（如 API.API_V1_PREFIX）
+            if (expression instanceof PsiReferenceExpression) {
+                PsiReferenceExpression refExpr = (PsiReferenceExpression) expression;
+                PsiElement resolved = refExpr.resolve();
+
+                if (resolved instanceof PsiField) {
+                    PsiField field = (PsiField) resolved;
+                    // 检查是否是常量字段（static final）
+                    if (field.hasModifierProperty(PsiModifier.STATIC) &&
+                        field.hasModifierProperty(PsiModifier.FINAL)) {
+
+                        PsiExpression initializer = field.getInitializer();
+                        if (initializer instanceof PsiLiteralExpression) {
+                            return ((PsiLiteralExpression) initializer).getValue();
+                        } else if (initializer != null) {
+                            // 递归解析初始化表达式
+                            return resolveConstantReference(initializer);
+                        }
+                    }
+                } else if (resolved == null) {
+                    // 如果标准resolve失败，尝试使用JavaPsiFacade查找第三方jar包中的类和字段
+                    Object result = resolveExternalConstant(refExpr);
+                    if (result != null) {
+                        return result;
+                    }
+                }
+            }
+
+            // 处理字面量表达式
+            if (expression instanceof PsiLiteralExpression) {
+                return ((PsiLiteralExpression) expression).getValue();
+            }
+
+            return null;
+        } catch (Exception e) {
+            return null;
         }
-        return null;
     }
 
     /**
@@ -396,6 +456,138 @@ public class RestfulUrlService {
         }
         
         return endpoints;
+    }
+
+    /**
+     * 构建完整的URL路径，包括类级别和方法级别的路径
+     */
+    public String buildFullUrl(PsiAnnotation annotation, String path) {
+        System.out.println("[DEBUG] buildFullUrl - Input path: " + path);
+        
+        // 查找类级别的@RequestMapping
+        PsiClass containingClass = PsiTreeUtil.getParentOfType(annotation, PsiClass.class);
+        String basePath = "";
+
+        if (containingClass != null) {
+            System.out.println("[DEBUG] buildFullUrl - Found containing class: " + containingClass.getName());
+            PsiAnnotation classMapping = containingClass.getAnnotation("org.springframework.web.bind.annotation.RequestMapping");
+            if (classMapping != null) {
+                String classPath = extractPathFromAnnotation(classMapping);
+                System.out.println("[DEBUG] buildFullUrl - Class level path from annotation: " + classPath);
+                if (classPath != null && !classPath.isEmpty()) {
+                    basePath = classPath;
+                }
+            } else {
+                System.out.println("[DEBUG] buildFullUrl - No @RequestMapping found on class");
+            }
+        }
+
+        System.out.println("[DEBUG] buildFullUrl - BasePath: " + basePath + ", MethodPath: " + path);
+
+        // 确保路径以/开头
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (!basePath.isEmpty() && !basePath.startsWith("/")) {
+            basePath = "/" + basePath;
+        }
+
+        // 合并基础路径和方法路径
+        String fullPath = basePath + path;
+
+        // 清理重复的斜杠
+        fullPath = fullPath.replaceAll("/+", "/");
+
+        System.out.println("[DEBUG] buildFullUrl - Final fullPath: " + fullPath);
+        
+        // 只返回路径部分，不包含host:port
+        return fullPath;
+    }
+
+    /**
+     * 解析第三方jar包中的常量，使用JavaPsiFacade主动查找
+     */
+    private Object resolveExternalConstant(PsiReferenceExpression refExpr) {
+        try {
+            String referenceName = refExpr.getReferenceName();
+            if (referenceName == null) {
+                return null;
+            }
+
+            // 获取限定符表达式（如 API.API_V1_PREFIX 中的 API）
+            PsiExpression qualifierExpression = refExpr.getQualifierExpression();
+            if (qualifierExpression instanceof PsiReferenceExpression) {
+                PsiReferenceExpression qualifierRef = (PsiReferenceExpression) qualifierExpression;
+                String className = qualifierRef.getReferenceName();
+
+                if (className != null) {
+                    // 尝试查找可能的完全限定类名
+                    String[] possiblePackages = {
+                        "", // 当前包
+                        "com.api.", // 常见的API包
+                        "org.api.",
+                        "com.constants.",
+                        "org.constants."
+                    };
+
+                    JavaPsiFacade facade = JavaPsiFacade.getInstance(refExpr.getProject());
+                    GlobalSearchScope scope = GlobalSearchScope.allScope(refExpr.getProject());
+
+                    for (String packagePrefix : possiblePackages) {
+                        String fullClassName = packagePrefix + className;
+                        PsiClass psiClass = facade.findClass(fullClassName, scope);
+
+                        if (psiClass != null) {
+                            PsiField field = psiClass.findFieldByName(referenceName, false);
+
+                            if (field != null &&
+                                field.hasModifierProperty(PsiModifier.STATIC) &&
+                                field.hasModifierProperty(PsiModifier.FINAL)) {
+
+                                PsiExpression initializer = field.getInitializer();
+                                if (initializer instanceof PsiLiteralExpression) {
+                                    Object value = ((PsiLiteralExpression) initializer).getValue();
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+
+                    // 如果上述方法失败，尝试通过import语句查找完整类名
+                    PsiFile containingFile = refExpr.getContainingFile();
+                    if (containingFile instanceof PsiJavaFile) {
+                        PsiJavaFile javaFile = (PsiJavaFile) containingFile;
+                        PsiImportList importList = javaFile.getImportList();
+
+                        if (importList != null) {
+                            for (PsiImportStatement importStatement : importList.getImportStatements()) {
+                                String importedName = importStatement.getQualifiedName();
+                                if (importedName != null && importedName.endsWith("." + className)) {
+                                    PsiClass importedClass = facade.findClass(importedName, scope);
+                                    if (importedClass != null) {
+                                        PsiField field = importedClass.findFieldByName(referenceName, false);
+                                        if (field != null &&
+                                            field.hasModifierProperty(PsiModifier.STATIC) &&
+                                            field.hasModifierProperty(PsiModifier.FINAL)) {
+
+                                            PsiExpression initializer = field.getInitializer();
+                                            if (initializer instanceof PsiLiteralExpression) {
+                                                Object value = ((PsiLiteralExpression) initializer).getValue();
+                                                return value;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -656,8 +848,13 @@ public class RestfulUrlService {
             
             String httpMethod = getHttpMethod(qualifiedName);
             if (httpMethod != null) {
+                // 先提取方法级别的路径
                 String methodPath = extractPathFromAnnotation(annotation);
-                String fullPath = combinePaths(classLevelPath, methodPath);
+                System.out.println("[DEBUG] scanMethodForEndpoints - Method: " + method.getName() + ", ClassLevelPath: " + classLevelPath + ", MethodPath: " + methodPath);
+                
+                // 然后使用buildFullUrl方法来处理常量解析和路径合并
+                String fullPath = buildFullUrl(annotation, methodPath);
+                System.out.println("[DEBUG] scanMethodForEndpoints - FullPath after buildFullUrl: " + fullPath);
                 
                 if (!fullPath.isEmpty()) {
                     String className = method.getContainingClass().getName();
@@ -667,6 +864,7 @@ public class RestfulUrlService {
                         httpMethod, fullPath, className, methodName, method, project
                     );
                     endpoints.add(endpoint);
+                    System.out.println("[DEBUG] scanMethodForEndpoints - Added endpoint: " + httpMethod + " " + fullPath);
                 }
             }
         }

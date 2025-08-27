@@ -1,6 +1,7 @@
 package com.devtoolkit.pro.ui;
 
 import com.devtoolkit.pro.services.RestfulUrlService;
+import com.devtoolkit.pro.navigation.RestfulEndpointNavigationItem;
 import com.devtoolkit.pro.utils.FuzzySearchUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -19,6 +20,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,6 +33,7 @@ public class SearchDialog extends DialogWrapper {
     private DefaultListModel<String> listModel;
     private RestfulUrlService urlService;
     private List<String> allUrls;
+    private List<RestfulEndpointNavigationItem> allEndpoints;
 
     public SearchDialog(Project project) {
         super(project, true);
@@ -103,7 +106,12 @@ public class SearchDialog extends DialogWrapper {
     }
 
     private void loadUrls() {
-        allUrls = urlService.findAllRestfulUrls();
+        // 使用新的端点扫描方法，支持常量解析
+        allEndpoints = urlService.findAllRestfulEndpoints();
+        allUrls = new ArrayList<>();
+        for (RestfulEndpointNavigationItem endpoint : allEndpoints) {
+            allUrls.add(endpoint.getName()); // getName()返回"HTTP_METHOD path"格式
+        }
         updateResultList(allUrls);
     }
 
@@ -167,7 +175,7 @@ public class SearchDialog extends DialogWrapper {
     }
 
     @Override
-    protected Action @NotNull [] createActions() {
+    protected Action[] createActions() {
         return new Action[]{getCancelAction()};
     }
 
