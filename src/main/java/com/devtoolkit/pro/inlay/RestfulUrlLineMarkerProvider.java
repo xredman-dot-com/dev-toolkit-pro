@@ -1512,13 +1512,43 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             this.sourceElement = sourceElement;
         }
 
+        /**
+         * 创建带样式的菜单项，增加图标和文字间距，添加悬停效果
+         */
+        private JMenuItem createStyledMenuItem(String text, Icon icon) {
+            JMenuItem menuItem = new JMenuItem(text, icon);
+            
+            // 设置图标和文字的间距
+            menuItem.setIconTextGap(8);
+            
+            // 设置内边距
+            menuItem.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+            
+            // 添加悬停效果
+            menuItem.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    menuItem.setBackground(new JBColor(new Color(230, 240, 255), new Color(75, 110, 175)));
+                    menuItem.setOpaque(true);
+                }
+                
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    menuItem.setBackground(null);
+                    menuItem.setOpaque(false);
+                }
+            });
+            
+            return menuItem;
+        }
+
         @Override
         public void navigate(MouseEvent e, PsiElement elt) {
             // 创建弹出菜单
             JPopupMenu popupMenu = new JPopupMenu();
 
             // 添加"拷贝URL"菜单项
-            JMenuItem copyUrlItem = new JMenuItem("拷贝URL", COPY_URL_ICON);
+            JMenuItem copyUrlItem = createStyledMenuItem("拷贝URL", COPY_URL_ICON);
             copyUrlItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
@@ -1535,7 +1565,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             popupMenu.add(copyUrlItem);
 
             // 添加"复制Markdown"菜单项
-            JMenuItem copyMarkdownItem = new JMenuItem("复制Markdown", COPY_MARKDOWN_ICON);
+            JMenuItem copyMarkdownItem = createStyledMenuItem("复制Markdown", COPY_MARKDOWN_ICON);
             copyMarkdownItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
@@ -1559,7 +1589,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             popupMenu.add(copyMarkdownItem);
 
             // 添加"复制curl"菜单项
-            JMenuItem copyCurlItem = new JMenuItem("复制curl", COPY_CURL_ICON);
+            JMenuItem copyCurlItem = createStyledMenuItem("复制curl", COPY_CURL_ICON);
             copyCurlItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
