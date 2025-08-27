@@ -10,6 +10,7 @@ import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.icons.AllIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,7 +24,7 @@ import java.util.List;
 
 public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     private static final Logger LOG = Logger.getInstance(RestfulUrlLineMarkerProvider.class);
-    private static final Icon PLUGIN_ICON = IconLoader.getIcon("/icons/pluginIcon.svg", RestfulUrlLineMarkerProvider.class);
+    private static final Icon PLUGIN_ICON = AllIcons.Gutter.ExtAnnotation;
 
     private static final String[] SPRING_MAPPING_ANNOTATIONS = {
         "GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
@@ -120,7 +121,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             element.getTextRange(),
             PLUGIN_ICON, // 使用插件自定义图标
             psiElement -> "Copy RESTful URL: " + fullUrl,
-            new GutterIconNavigationHandler(fullUrl),
+            new GutterIconNavigationHandler(fullUrl, element),
             GutterIconRenderer.Alignment.RIGHT,
             () -> fullUrl // 直接显示URL文本
         );
@@ -177,7 +178,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                 element.getTextRange(),
                 PLUGIN_ICON, // 使用插件自定义图标
                 psiElement -> "Copy RESTful URL: " + fullUrl,
-                new GutterIconNavigationHandler(fullUrl),
+                new GutterIconNavigationHandler(fullUrl, element),
                 GutterIconRenderer.Alignment.RIGHT,
                 () -> fullUrl // 直接显示URL文本
             );
@@ -425,18 +426,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         }
     }
 
-    private String getKotlinAnnotationName(Object ktAnnotationEntry) {
-        try {
-            // 使用反射获取Kotlin注解名称
-            Object shortName = ktAnnotationEntry.getClass().getMethod("getShortName").invoke(ktAnnotationEntry);
-            if (shortName != null) {
-                return shortName.toString();
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
+
 
     private String extractPathFromKotlinAnnotation(Object ktAnnotationEntry) {
         try {
@@ -858,7 +848,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         return "http://localhost:8080" + fullPath;
     }
 
-    private String getAnnotationName(PsiAnnotation annotation) {
+    private static String getAnnotationName(PsiAnnotation annotation) {
         String qualifiedName = annotation.getQualifiedName();
         if (qualifiedName == null) {
             return null;
@@ -879,11 +869,636 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                "Controller".equals(annotationName);
     }
 
+    // Swagger注解信息类
+    private static class SwaggerInfo {
+        String summary = "";
+        String description = "";
+        String[] tags = new String[0];
+        String[] produces = new String[0];
+        String[] consumes = new String[0];
+        java.util.List<ParameterInfo> parameters = new java.util.ArrayList<>();
+        ResponseInfo response = new ResponseInfo();
+    }
+
+    private static class ParameterInfo {
+        String name = "";
+        String type = "";
+        String description = "";
+        boolean required = false;
+        String in = ""; // query, path, body, header
+    }
+
+    private static class ResponseInfo {
+        String type = "";
+        String description = "";
+    }
+
+    /**
+     * 提取Swagger注解信息
+     */
+    private static SwaggerInfo extractSwaggerInfo(PsiElement element) {
+        SwaggerInfo info = new SwaggerInfo();
+        try {
+            // 检查是否是Kotlin文件
+            PsiFile file = element.getContainingFile();
+            boolean isKotlin = file != null && "Kotlin".equals(file.getLanguage().getDisplayName());
+            
+            if (isKotlin) {
+                return extractKotlinSwaggerInfo(element);
+            } else {
+                return extractJavaSwaggerInfo(element);
+            }
+        } catch (Exception e) {
+            LOG.warn("提取Swagger信息失败", e);
+        }
+        return info;
+    }
+    
+    /**
+     * 提取Java Swagger注解信息
+     */
+    private static SwaggerInfo extractJavaSwaggerInfo(PsiElement element) {
+        SwaggerInfo info = new SwaggerInfo();
+        try {
+            // 查找包含此元素的方法
+            PsiMethod method = findContainingMethod(element);
+            if (method == null) {
+                return info;
+            }
+
+            // 解析方法上的注解
+            PsiAnnotation[] annotations = method.getAnnotations();
+            for (PsiAnnotation annotation : annotations) {
+                String annotationName = getAnnotationName(annotation);
+                if (annotationName == null) continue;
+
+                switch (annotationName) {
+                    case "ApiOperation":
+                        info.summary = getAnnotationStringValue(annotation, "value", "");
+                        info.description = getAnnotationStringValue(annotation, "notes", "");
+                        info.tags = getAnnotationStringArrayValue(annotation, "tags");
+                        break;
+                    case "Operation":
+                        info.summary = getAnnotationStringValue(annotation, "summary", "");
+                        info.description = getAnnotationStringValue(annotation, "description", "");
+                        break;
+                }
+            }
+
+            // 解析方法参数
+            PsiParameter[] parameters = method.getParameterList().getParameters();
+            for (PsiParameter parameter : parameters) {
+                ParameterInfo paramInfo = extractParameterInfo(parameter);
+                if (paramInfo != null) {
+                    info.parameters.add(paramInfo);
+                }
+            }
+
+            // 解析返回类型
+            PsiType returnType = method.getReturnType();
+            if (returnType != null) {
+                info.response.type = returnType.getPresentableText();
+            }
+
+        } catch (Exception e) {
+            LOG.warn("提取Java Swagger信息失败", e);
+        }
+        return info;
+    }
+    
+    /**
+     * 提取Kotlin Swagger注解信息
+     */
+    private static SwaggerInfo extractKotlinSwaggerInfo(PsiElement element) {
+        SwaggerInfo info = new SwaggerInfo();
+        try {
+            // 查找包含此元素的Kotlin方法
+            Object ktFunction = findKotlinFunction(element);
+            if (ktFunction == null) {
+                return info;
+            }
+
+            // 解析Kotlin方法上的注解
+            Object[] annotations = getKotlinAnnotations(ktFunction);
+            if (annotations != null) {
+                for (Object annotation : annotations) {
+                    String annotationName = getKotlinAnnotationName(annotation);
+                    if (annotationName == null) continue;
+
+                    switch (annotationName) {
+                        case "ApiOperation":
+                            info.summary = extractKotlinAnnotationStringValue(annotation, "value", "");
+                            info.description = extractKotlinAnnotationStringValue(annotation, "notes", "");
+                            break;
+                        case "Operation":
+                            info.summary = extractKotlinAnnotationStringValue(annotation, "summary", "");
+                            info.description = extractKotlinAnnotationStringValue(annotation, "description", "");
+                            break;
+                    }
+                }
+            }
+
+            // 解析Kotlin方法参数
+            Object[] parameters = getKotlinFunctionParameters(ktFunction);
+            if (parameters != null) {
+                for (Object parameter : parameters) {
+                    ParameterInfo paramInfo = extractKotlinParameterInfo(parameter);
+                    if (paramInfo != null) {
+                        info.parameters.add(paramInfo);
+                    }
+                }
+            }
+
+            // 解析Kotlin返回类型
+            String returnType = getKotlinFunctionReturnType(ktFunction);
+            if (returnType != null && !returnType.isEmpty()) {
+                info.response.type = returnType;
+            }
+
+        } catch (Exception e) {
+             LOG.warn("提取Kotlin Swagger信息失败", e);
+         }
+         return info;
+     }
+     
+     /**
+      * 查找包含元素的Kotlin函数
+      */
+     private static Object findKotlinFunction(PsiElement element) {
+         try {
+             PsiElement current = element;
+             while (current != null) {
+                 if (current.getClass().getSimpleName().contains("KtNamedFunction")) {
+                     return current;
+                 }
+                 current = current.getParent();
+             }
+         } catch (Exception e) {
+             LOG.warn("查找Kotlin函数失败", e);
+         }
+         return null;
+     }
+     
+     /**
+      * 获取Kotlin函数的注解
+      */
+     private static Object[] getKotlinAnnotations(Object ktFunction) {
+         try {
+             if (ktFunction != null) {
+                 // 使用反射获取Kotlin注解
+                 java.lang.reflect.Method getAnnotationsMethod = ktFunction.getClass().getMethod("getAnnotationEntries");
+                 Object annotationEntries = getAnnotationsMethod.invoke(ktFunction);
+                 if (annotationEntries instanceof java.util.List) {
+                     java.util.List<?> list = (java.util.List<?>) annotationEntries;
+                     return list.toArray();
+                 }
+             }
+         } catch (Exception e) {
+             LOG.warn("获取Kotlin注解失败", e);
+         }
+         return new Object[0];
+     }
+     
+     /**
+      * 获取Kotlin注解名称
+      */
+     private static String getKotlinAnnotationName(Object annotation) {
+         try {
+             if (annotation != null) {
+                 java.lang.reflect.Method getShortNameMethod = annotation.getClass().getMethod("getShortName");
+                 Object shortName = getShortNameMethod.invoke(annotation);
+                 return shortName != null ? shortName.toString() : null;
+             }
+         } catch (Exception e) {
+             LOG.warn("获取Kotlin注解名称失败", e);
+         }
+         return null;
+     }
+     
+     /**
+      * 提取Kotlin注解字符串值
+      */
+     private static String extractKotlinAnnotationStringValue(Object annotation, String attributeName, String defaultValue) {
+         try {
+             if (annotation != null) {
+                 // 简化处理，返回默认值
+                 return defaultValue;
+             }
+         } catch (Exception e) {
+             LOG.warn("提取Kotlin注解值失败", e);
+         }
+         return defaultValue;
+     }
+     
+     /**
+      * 获取Kotlin函数参数
+      */
+     private static Object[] getKotlinFunctionParameters(Object ktFunction) {
+         try {
+             if (ktFunction != null) {
+                 java.lang.reflect.Method getValueParametersMethod = ktFunction.getClass().getMethod("getValueParameters");
+                 Object parameters = getValueParametersMethod.invoke(ktFunction);
+                 if (parameters instanceof java.util.List) {
+                     java.util.List<?> list = (java.util.List<?>) parameters;
+                     return list.toArray();
+                 }
+             }
+         } catch (Exception e) {
+             LOG.warn("获取Kotlin函数参数失败", e);
+         }
+         return new Object[0];
+     }
+     
+     /**
+      * 提取Kotlin参数信息
+      */
+     private static ParameterInfo extractKotlinParameterInfo(Object parameter) {
+         try {
+             if (parameter != null) {
+                 ParameterInfo info = new ParameterInfo();
+                 // 获取参数名称
+                 java.lang.reflect.Method getNameMethod = parameter.getClass().getMethod("getName");
+                 Object name = getNameMethod.invoke(parameter);
+                 info.name = name != null ? name.toString() : "unknown";
+                 
+                 // 获取参数类型
+                 java.lang.reflect.Method getTypeMethod = parameter.getClass().getMethod("getTypeReference");
+                 Object typeRef = getTypeMethod.invoke(parameter);
+                 if (typeRef != null) {
+                     java.lang.reflect.Method getTextMethod = typeRef.getClass().getMethod("getText");
+                     Object typeText = getTextMethod.invoke(typeRef);
+                     info.type = typeText != null ? typeText.toString() : "Any";
+                 } else {
+                     info.type = "Any";
+                 }
+                 
+                 info.required = true; // 默认必需
+                 return info;
+             }
+         } catch (Exception e) {
+             LOG.warn("提取Kotlin参数信息失败", e);
+         }
+         return null;
+     }
+     
+     /**
+      * 获取Kotlin函数返回类型
+      */
+     private static String getKotlinFunctionReturnType(Object ktFunction) {
+         try {
+             if (ktFunction != null) {
+                 java.lang.reflect.Method getTypeReferenceMethod = ktFunction.getClass().getMethod("getTypeReference");
+                 Object typeRef = getTypeReferenceMethod.invoke(ktFunction);
+                 if (typeRef != null) {
+                     java.lang.reflect.Method getTextMethod = typeRef.getClass().getMethod("getText");
+                     Object typeText = getTextMethod.invoke(typeRef);
+                     return typeText != null ? typeText.toString() : "Unit";
+                 }
+             }
+         } catch (Exception e) {
+             LOG.warn("获取Kotlin返回类型失败", e);
+         }
+         return "Unit";
+     }
+
+    /**
+     * 查找包含指定元素的方法
+     */
+    private static PsiMethod findContainingMethod(PsiElement element) {
+        PsiElement current = element;
+        while (current != null) {
+            if (current instanceof PsiMethod) {
+                return (PsiMethod) current;
+            }
+            current = current.getParent();
+        }
+        return null;
+    }
+
+    /**
+     * 提取参数信息
+     */
+    private static ParameterInfo extractParameterInfo(PsiParameter parameter) {
+        ParameterInfo info = new ParameterInfo();
+        info.name = parameter.getName();
+        info.type = parameter.getType().getPresentableText();
+
+        // 解析参数注解
+        PsiAnnotation[] annotations = parameter.getAnnotations();
+        for (PsiAnnotation annotation : annotations) {
+            String annotationName = getAnnotationName(annotation);
+            if (annotationName == null) continue;
+
+            switch (annotationName) {
+                case "RequestParam":
+                    info.in = "query";
+                    String paramName = getAnnotationStringValue(annotation, "value", "");
+                    if (!paramName.isEmpty()) {
+                        info.name = paramName;
+                    }
+                    info.required = getAnnotationBooleanValue(annotation, "required", true);
+                    break;
+                case "PathVariable":
+                    info.in = "path";
+                    String pathName = getAnnotationStringValue(annotation, "value", "");
+                    if (!pathName.isEmpty()) {
+                        info.name = pathName;
+                    }
+                    break;
+                case "RequestBody":
+                    info.in = "body";
+                    info.required = getAnnotationBooleanValue(annotation, "required", true);
+                    break;
+                case "RequestHeader":
+                    info.in = "header";
+                    String headerName = getAnnotationStringValue(annotation, "value", "");
+                    if (!headerName.isEmpty()) {
+                        info.name = headerName;
+                    }
+                    break;
+                case "ApiParam":
+                    info.description = getAnnotationStringValue(annotation, "value", "");
+                    break;
+                case "Parameter":
+                    info.description = getAnnotationStringValue(annotation, "description", "");
+                    break;
+            }
+        }
+
+        return info;
+    }
+
+    /**
+     * 获取注解的字符串值
+     */
+    private static String getAnnotationStringValue(PsiAnnotation annotation, String attributeName, String defaultValue) {
+        try {
+            PsiAnnotationMemberValue value = annotation.findAttributeValue(attributeName);
+            if (value != null) {
+                String text = value.getText();
+                // 移除引号
+                if (text.startsWith("\"") && text.endsWith("\"")) {
+                    return text.substring(1, text.length() - 1);
+                }
+                return text;
+            }
+        } catch (Exception e) {
+            // 忽略异常
+        }
+        return defaultValue;
+    }
+
+    /**
+     * 获取注解的字符串数组值
+     */
+    private static String[] getAnnotationStringArrayValue(PsiAnnotation annotation, String attributeName) {
+        try {
+            PsiAnnotationMemberValue value = annotation.findAttributeValue(attributeName);
+            if (value instanceof PsiArrayInitializerMemberValue) {
+                PsiArrayInitializerMemberValue arrayValue = (PsiArrayInitializerMemberValue) value;
+                PsiAnnotationMemberValue[] initializers = arrayValue.getInitializers();
+                String[] result = new String[initializers.length];
+                for (int i = 0; i < initializers.length; i++) {
+                    String text = initializers[i].getText();
+                    if (text.startsWith("\"") && text.endsWith("\"")) {
+                        result[i] = text.substring(1, text.length() - 1);
+                    } else {
+                        result[i] = text;
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            // 忽略异常
+        }
+        return new String[0];
+    }
+
+    /**
+     * 获取注解的布尔值
+     */
+    private static boolean getAnnotationBooleanValue(PsiAnnotation annotation, String attributeName, boolean defaultValue) {
+        try {
+            PsiAnnotationMemberValue value = annotation.findAttributeValue(attributeName);
+            if (value != null) {
+                return Boolean.parseBoolean(value.getText());
+            }
+        } catch (Exception e) {
+            // 忽略异常
+        }
+        return defaultValue;
+    }
+
+    /**
+     * 生成Markdown文档
+     */
+    private static String generateMarkdownDoc(PsiElement element, String url) {
+        SwaggerInfo info = extractSwaggerInfo(element);
+        StringBuilder markdown = new StringBuilder();
+
+        // 提取HTTP方法
+        String httpMethod = extractHttpMethod(element);
+        
+        // API标题
+        String title = info.summary.isEmpty() ? "API接口" : info.summary;
+        markdown.append("## ").append(title).append("\n\n");
+        
+        // 基本信息
+        markdown.append("**请求方式:** ").append(httpMethod.toUpperCase()).append("\n\n");
+        markdown.append("**请求URL:** `").append(url).append("`\n\n");
+        
+        if (!info.description.isEmpty()) {
+            markdown.append("**接口描述:** ").append(info.description).append("\n\n");
+        }
+        
+        if (info.tags.length > 0) {
+            markdown.append("**标签:** ").append(String.join(", ", info.tags)).append("\n\n");
+        }
+
+        // 请求参数表格
+        if (!info.parameters.isEmpty()) {
+            markdown.append("### 请求参数\n\n");
+            markdown.append("| 参数名 | 类型 | 位置 | 必填 | 说明 |\n");
+            markdown.append("|--------|------|------|------|------|\n");
+            
+            for (ParameterInfo param : info.parameters) {
+                markdown.append("| ").append(param.name)
+                        .append(" | ").append(param.type)
+                        .append(" | ").append(param.in.isEmpty() ? "query" : param.in)
+                        .append(" | ").append(param.required ? "是" : "否")
+                        .append(" | ").append(param.description)
+                        .append(" |\n");
+            }
+            markdown.append("\n");
+        }
+
+        // 响应信息
+        markdown.append("### 响应信息\n\n");
+        markdown.append("| 字段 | 类型 | 说明 |\n");
+        markdown.append("|------|------|------|\n");
+        
+        if (!info.response.type.isEmpty()) {
+            markdown.append("| 返回值 | ").append(info.response.type)
+                    .append(" | ").append(info.response.description.isEmpty() ? "接口返回数据" : info.response.description)
+                    .append(" |\n");
+        } else {
+            markdown.append("| 返回值 | Object | 接口返回数据 |\n");
+        }
+        
+        return markdown.toString();
+    }
+
+    /**
+     * 生成curl命令
+     */
+    private static String generateCurlCommand(PsiElement element, String url) {
+        SwaggerInfo info = extractSwaggerInfo(element);
+        StringBuilder curl = new StringBuilder();
+        
+        // 提取HTTP方法
+        String httpMethod = extractHttpMethod(element);
+        
+        curl.append("curl -X ").append(httpMethod.toUpperCase());
+        
+        // 添加URL
+        curl.append(" \\").append("\n  '").append(url).append("'");
+        
+        // 添加请求头
+        curl.append(" \\").append("\n  -H 'Content-Type: application/json'");
+        curl.append(" \\").append("\n  -H 'Accept: application/json'");
+        
+        // 检查是否有body参数
+        boolean hasBodyParam = info.parameters.stream().anyMatch(p -> "body".equals(p.in));
+        
+        if (hasBodyParam && ("POST".equalsIgnoreCase(httpMethod) || "PUT".equalsIgnoreCase(httpMethod) || "PATCH".equalsIgnoreCase(httpMethod))) {
+            curl.append(" \\").append("\n  -d '{");
+            
+            // 添加示例JSON数据
+            boolean first = true;
+            for (ParameterInfo param : info.parameters) {
+                if ("body".equals(param.in)) {
+                    if (!first) {
+                        curl.append(",");
+                    }
+                    curl.append("\n    \"").append(param.name).append("\": ");
+                    
+                    // 根据类型生成示例值
+                    String exampleValue = generateExampleValue(param.type);
+                    curl.append(exampleValue);
+                    first = false;
+                }
+            }
+            
+            if (first) {
+                // 如果没有具体的body参数，添加通用示例
+                curl.append("\n    \"key\": \"value\"");
+            }
+            
+            curl.append("\n  }'");
+        }
+        
+        // 添加查询参数示例
+        java.util.List<ParameterInfo> queryParams = info.parameters.stream()
+                .filter(p -> "query".equals(p.in) || p.in.isEmpty())
+                .collect(java.util.stream.Collectors.toList());
+        
+        if (!queryParams.isEmpty()) {
+            if (!url.contains("?")) {
+                curl.append("?");
+            } else {
+                curl.append("&");
+            }
+            
+            for (int i = 0; i < queryParams.size(); i++) {
+                ParameterInfo param = queryParams.get(i);
+                if (i > 0) {
+                    curl.append("&");
+                }
+                curl.append(param.name).append("=").append(generateExampleValue(param.type));
+            }
+        }
+        
+        return curl.toString();
+    }
+
+    /**
+     * 提取HTTP方法
+     */
+    private static String extractHttpMethod(PsiElement element) {
+        try {
+            // 查找包含此元素的方法
+            PsiMethod method = findContainingMethod(element);
+            if (method == null) {
+                return "GET";
+            }
+
+            // 检查方法上的注解
+            PsiAnnotation[] annotations = method.getAnnotations();
+            for (PsiAnnotation annotation : annotations) {
+                String annotationName = getAnnotationName(annotation);
+                if (annotationName == null) continue;
+
+                switch (annotationName) {
+                    case "GetMapping":
+                        return "GET";
+                    case "PostMapping":
+                        return "POST";
+                    case "PutMapping":
+                        return "PUT";
+                    case "DeleteMapping":
+                        return "DELETE";
+                    case "PatchMapping":
+                        return "PATCH";
+                    case "RequestMapping":
+                        // 检查method属性
+                        PsiAnnotationMemberValue methodValue = annotation.findAttributeValue("method");
+                        if (methodValue != null) {
+                            String methodText = methodValue.getText();
+                            if (methodText.contains("POST")) return "POST";
+                            if (methodText.contains("PUT")) return "PUT";
+                            if (methodText.contains("DELETE")) return "DELETE";
+                            if (methodText.contains("PATCH")) return "PATCH";
+                        }
+                        return "GET"; // 默认GET
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("提取HTTP方法失败", e);
+        }
+        return "GET";
+    }
+
+    /**
+     * 根据类型生成示例值
+     */
+    private static String generateExampleValue(String type) {
+        if (type == null || type.isEmpty()) {
+            return "\"example\"";
+        }
+        
+        type = type.toLowerCase();
+        if (type.contains("string")) {
+            return "\"example\"";
+        } else if (type.contains("int") || type.contains("long")) {
+            return "123";
+        } else if (type.contains("double") || type.contains("float")) {
+            return "123.45";
+        } else if (type.contains("boolean")) {
+            return "true";
+        } else if (type.contains("date")) {
+            return "\"2024-01-01\"";
+        } else {
+            return "\"example\"";
+        }
+    }
+
     private static class GutterIconNavigationHandler implements com.intellij.codeInsight.daemon.GutterIconNavigationHandler<PsiElement> {
         private final String url;
+        private final PsiElement sourceElement;
 
-        public GutterIconNavigationHandler(String url) {
+        public GutterIconNavigationHandler(String url, PsiElement sourceElement) {
             this.url = url;
+            this.sourceElement = sourceElement;
         }
 
         @Override
@@ -907,6 +1522,54 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                 }
             });
             popupMenu.add(copyUrlItem);
+
+            // 添加"复制Markdown"菜单项
+            JMenuItem copyMarkdownItem = new JMenuItem("复制Markdown");
+            copyMarkdownItem.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent actionEvent) {
+                    try {
+                        String markdown = generateMarkdownDoc(sourceElement, url);
+                        CopyPasteManager.getInstance().setContents(new StringSelection(markdown));
+                        
+                        NotificationGroupManager.getInstance()
+                            .getNotificationGroup("RestfulTool")
+                            .createNotification("复制成功", "已复制Markdown文档", NotificationType.INFORMATION)
+                            .notify(elt.getProject());
+                    } catch (Exception ex) {
+                        LOG.error("生成Markdown文档失败", ex);
+                        NotificationGroupManager.getInstance()
+                            .getNotificationGroup("RestfulTool")
+                            .createNotification("复制失败", "生成Markdown文档时出错: " + ex.getMessage(), NotificationType.ERROR)
+                            .notify(elt.getProject());
+                    }
+                }
+            });
+            popupMenu.add(copyMarkdownItem);
+
+            // 添加"复制curl"菜单项
+            JMenuItem copyCurlItem = new JMenuItem("复制curl");
+            copyCurlItem.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent actionEvent) {
+                    try {
+                        String curlCommand = generateCurlCommand(sourceElement, url);
+                        CopyPasteManager.getInstance().setContents(new StringSelection(curlCommand));
+                        
+                        NotificationGroupManager.getInstance()
+                            .getNotificationGroup("RestfulTool")
+                            .createNotification("复制成功", "已复制curl命令", NotificationType.INFORMATION)
+                            .notify(elt.getProject());
+                    } catch (Exception ex) {
+                        LOG.error("生成curl命令失败", ex);
+                        NotificationGroupManager.getInstance()
+                            .getNotificationGroup("RestfulTool")
+                            .createNotification("复制失败", "生成curl命令时出错: " + ex.getMessage(), NotificationType.ERROR)
+                            .notify(elt.getProject());
+                    }
+                }
+            });
+            popupMenu.add(copyCurlItem);
 
             // 显示弹出菜单
             popupMenu.show(e.getComponent(), e.getX(), e.getY());
