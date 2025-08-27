@@ -68,6 +68,7 @@
     <depends>com.intellij.modules.platform</depends>
     <depends optional="true" config-file="java-features.xml">com.intellij.modules.java</depends>
     <depends optional="true">com.intellij.modules.python</depends>
+    <depends optional="true">org.jetbrains.kotlin</depends>
     <depends>Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -82,9 +83,11 @@
         
         <!-- Inlay Hints Provider for RESTful URL copying - using traditional approach -->
         <codeInsight.inlayProvider language="JAVA" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlInlayHintsProvider"/>
+        <codeInsight.inlayProvider language="kotlin" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlInlayHintsProvider"/>
         
         <!-- Line Marker Provider for RESTful URL copying with Gutter Icons -->
         <codeInsight.lineMarkerProvider language="JAVA" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="kotlin" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlLineMarkerProvider"/>
         
         <!-- Inlay Action Handler for URL copying -->
         <codeInsight.inlayActionHandler id="copy.url.action" implementationClass="com.devtoolkit.pro.inlay.CopyUrlActionHandler"/>

@@ -158,6 +158,7 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
      */
     private void scanFromJavaFiles(Project project, List<RestfulEndpointNavigationItem> endpoints) {
         try {
+            // 扫描Java文件
             FileType javaFileType = FileTypeManager.getInstance().getFileTypeByExtension("java");
             Collection<VirtualFile> javaFiles = FileTypeIndex.getFiles(javaFileType, 
                 GlobalSearchScope.projectScope(project));
@@ -168,14 +169,225 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
                     scanJavaFile((PsiJavaFile) psiFile, endpoints, project);
                 }
             }
+            
+            // 扫描Kotlin文件
+            scanFromKotlinFiles(project, endpoints);
+            
         } catch (Exception e) {
             System.err.println("Failed to scan from Java files: " + e.getMessage());
         }
     }
     
     /**
-     * 根据注解名称查找类
+     * 扫描Kotlin文件
      */
+    private void scanFromKotlinFiles(Project project, List<RestfulEndpointNavigationItem> endpoints) {
+        try {
+            FileType kotlinFileType = FileTypeManager.getInstance().getFileTypeByExtension("kt");
+            if (kotlinFileType == null) {
+                System.out.println("Kotlin file type not found, skipping Kotlin file scan");
+                return;
+            }
+            
+            Collection<VirtualFile> kotlinFiles = FileTypeIndex.getFiles(kotlinFileType, 
+                GlobalSearchScope.projectScope(project));
+            
+            System.out.println("Found " + kotlinFiles.size() + " Kotlin files to scan");
+
+            for (VirtualFile virtualFile : kotlinFiles) {
+                PsiFile psiFile = psiManager.findFile(virtualFile);
+                if (psiFile != null) {
+                    System.out.println("Scanning Kotlin file: " + virtualFile.getName());
+                    scanKotlinFile(psiFile, endpoints, project);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to scan from Kotlin files: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+      * 扫描Kotlin文件
+      */
+     private void scanKotlinFile(PsiFile kotlinFile, List<RestfulEndpointNavigationItem> endpoints, Project project) {
+         try {
+             // 使用反射方式处理Kotlin文件，避免直接依赖Kotlin PSI类
+             Object[] classes = getKotlinClasses(kotlinFile);
+             if (classes != null) {
+                 for (Object kotlinClass : classes) {
+                     if (isKotlinControllerClass(kotlinClass)) {
+                         String classLevelPath = extractKotlinClassLevelPath(kotlinClass);
+                         scanKotlinMethodsForEndpoints(kotlinClass, classLevelPath, endpoints, project);
+                     }
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("Error scanning Kotlin file " + kotlinFile.getName() + ": " + e.getMessage());
+         }
+     }
+     
+     /**
+      * 获取Kotlin文件中的类（使用反射避免直接依赖）
+      */
+     private Object[] getKotlinClasses(PsiFile kotlinFile) {
+         try {
+             // 通过反射调用getClasses方法
+             java.lang.reflect.Method getClassesMethod = kotlinFile.getClass().getMethod("getClasses");
+             return (Object[]) getClassesMethod.invoke(kotlinFile);
+         } catch (Exception e) {
+             System.err.println("Failed to get Kotlin classes: " + e.getMessage());
+             return null;
+         }
+     }
+     
+     /**
+      * 检查是否为Kotlin Controller类
+      */
+     private boolean isKotlinControllerClass(Object kotlinClass) {
+         try {
+             // 通过反射获取注解
+             java.lang.reflect.Method getAnnotationsMethod = kotlinClass.getClass().getMethod("getAnnotations");
+             Object[] annotations = (Object[]) getAnnotationsMethod.invoke(kotlinClass);
+             
+             for (Object annotation : annotations) {
+                 java.lang.reflect.Method getQualifiedNameMethod = annotation.getClass().getMethod("getQualifiedName");
+                 String qualifiedName = (String) getQualifiedNameMethod.invoke(annotation);
+                 
+                 if (qualifiedName != null && 
+                     (qualifiedName.endsWith("RestController") || 
+                      qualifiedName.endsWith("Controller") ||
+                      qualifiedName.endsWith("RequestMapping"))) {
+                     return true;
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("Error checking Kotlin controller class: " + e.getMessage());
+         }
+         return false;
+     }
+     
+     /**
+      * 提取Kotlin类级别路径
+      */
+     private String extractKotlinClassLevelPath(Object kotlinClass) {
+         try {
+             java.lang.reflect.Method getAnnotationsMethod = kotlinClass.getClass().getMethod("getAnnotations");
+             Object[] annotations = (Object[]) getAnnotationsMethod.invoke(kotlinClass);
+             
+             for (Object annotation : annotations) {
+                 java.lang.reflect.Method getQualifiedNameMethod = annotation.getClass().getMethod("getQualifiedName");
+                 String qualifiedName = (String) getQualifiedNameMethod.invoke(annotation);
+                 
+                 if (qualifiedName != null && qualifiedName.endsWith("RequestMapping")) {
+                     return extractKotlinPathFromAnnotation(annotation);
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("Error extracting Kotlin class level path: " + e.getMessage());
+         }
+         return "";
+     }
+     
+     /**
+      * 扫描Kotlin方法
+      */
+     private void scanKotlinMethodsForEndpoints(Object kotlinClass, String classLevelPath, 
+                                              List<RestfulEndpointNavigationItem> endpoints, Project project) {
+         try {
+             java.lang.reflect.Method getMethodsMethod = kotlinClass.getClass().getMethod("getMethods");
+             Object[] methods = (Object[]) getMethodsMethod.invoke(kotlinClass);
+             
+             for (Object method : methods) {
+                 scanKotlinMethodForEndpoints(method, classLevelPath, endpoints, project);
+             }
+         } catch (Exception e) {
+             System.err.println("Error scanning Kotlin methods: " + e.getMessage());
+         }
+     }
+     
+     /**
+      * 扫描单个Kotlin方法
+      */
+     private void scanKotlinMethodForEndpoints(Object method, String classLevelPath, 
+                                             List<RestfulEndpointNavigationItem> endpoints, Project project) {
+         try {
+             java.lang.reflect.Method getAnnotationsMethod = method.getClass().getMethod("getAnnotations");
+             Object[] annotations = (Object[]) getAnnotationsMethod.invoke(method);
+             
+             for (Object annotation : annotations) {
+                 java.lang.reflect.Method getQualifiedNameMethod = annotation.getClass().getMethod("getQualifiedName");
+                 String qualifiedName = (String) getQualifiedNameMethod.invoke(annotation);
+                 
+                 if (qualifiedName != null && isSpringMappingAnnotation(qualifiedName)) {
+                     String httpMethod = getHttpMethod(qualifiedName);
+                     String methodPath = extractKotlinPathFromAnnotation(annotation);
+                     String fullPath = combinePaths(classLevelPath, methodPath);
+                     
+                     if (!fullPath.isEmpty()) {
+                         java.lang.reflect.Method getNameMethod = method.getClass().getMethod("getName");
+                         String methodName = (String) getNameMethod.invoke(method);
+                         
+                         RestfulEndpointNavigationItem item = new RestfulEndpointNavigationItem(
+                              httpMethod, fullPath, "", methodName, null, project);
+                         endpoints.add(item);
+                         
+                         System.out.println("Found Kotlin endpoint: " + httpMethod + " " + fullPath);
+                     }
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("Error scanning Kotlin method: " + e.getMessage());
+         }
+     }
+     
+     /**
+      * 从Kotlin注解中提取路径
+      */
+     private String extractKotlinPathFromAnnotation(Object annotation) {
+         try {
+             // 尝试获取注解的文本内容
+             java.lang.reflect.Method getTextMethod = annotation.getClass().getMethod("getText");
+             String text = (String) getTextMethod.invoke(annotation);
+             
+             if (text != null) {
+                 // 使用正则表达式提取路径
+                 Matcher valueMatcher = VALUE_PATTERN.matcher(text);
+                 if (valueMatcher.find()) {
+                     return valueMatcher.group(1);
+                 }
+                 
+                 Matcher pathMatcher = PATH_PATTERN.matcher(text);
+                 if (pathMatcher.find()) {
+                     return pathMatcher.group(1);
+                 }
+                 
+                 Matcher urlMatcher = URL_PATTERN.matcher(text);
+                 if (urlMatcher.find()) {
+                     return urlMatcher.group(1);
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("Error extracting path from Kotlin annotation: " + e.getMessage());
+         }
+         return "";
+     }
+     
+     /**
+      * 检查是否为Spring映射注解
+      */
+     private boolean isSpringMappingAnnotation(String qualifiedName) {
+         for (String annotation : SPRING_MAPPING_ANNOTATIONS) {
+             if (qualifiedName.endsWith(annotation)) {
+                 return true;
+             }
+         }
+         return false;
+     }
+     
+     /**
+      * 根据注解名称查找类
+      */
     private Collection<PsiClass> findClassesByAnnotation(String annotationName, GlobalSearchScope scope, Project project) {
         List<PsiClass> classes = new ArrayList<>();
         
