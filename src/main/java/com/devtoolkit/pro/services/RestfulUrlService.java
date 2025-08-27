@@ -203,6 +203,24 @@ public class RestfulUrlService {
      * 从注解中提取路径
      */
     private String extractPathFromAnnotation(PsiAnnotation annotation) {
+        // 首先尝试从注解属性中获取值
+        PsiAnnotationMemberValue valueAttr = annotation.findAttributeValue("value");
+        if (valueAttr != null) {
+            String path = evaluateConstantExpression(valueAttr);
+            if (path != null && !path.isEmpty()) {
+                return path;
+            }
+        }
+        
+        PsiAnnotationMemberValue pathAttr = annotation.findAttributeValue("path");
+        if (pathAttr != null) {
+            String path = evaluateConstantExpression(pathAttr);
+            if (path != null && !path.isEmpty()) {
+                return path;
+            }
+        }
+        
+        // 回退到原有的正则表达式方法
         String annotationText = annotation.getText();
         
         // 尝试提取value属性
@@ -224,6 +242,55 @@ public class RestfulUrlService {
         }
         
         return "";
+    }
+    
+    /**
+     * 计算常量表达式的值
+     */
+    private String evaluateConstantExpression(PsiAnnotationMemberValue value) {
+        if (value == null) return null;
+        
+        // 处理字符串字面量
+        if (value instanceof PsiLiteralExpression) {
+            Object literalValue = ((PsiLiteralExpression) value).getValue();
+            return literalValue instanceof String ? (String) literalValue : null;
+        }
+        
+        // 处理二元表达式（如字符串拼接）
+        if (value instanceof PsiBinaryExpression) {
+            PsiBinaryExpression binaryExpr = (PsiBinaryExpression) value;
+            if (binaryExpr.getOperationTokenType().toString().equals("PLUS")) {
+                String left = evaluateConstantExpression(binaryExpr.getLOperand());
+                String right = evaluateConstantExpression(binaryExpr.getROperand());
+                if (left != null && right != null) {
+                    return left + right;
+                }
+            }
+        }
+        
+        // 处理常量引用
+        if (value instanceof PsiReferenceExpression) {
+            return resolveConstantReference((PsiReferenceExpression) value);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 解析常量引用
+     */
+    private String resolveConstantReference(PsiReferenceExpression refExpr) {
+        PsiElement resolved = refExpr.resolve();
+        if (resolved instanceof PsiField) {
+            PsiField field = (PsiField) resolved;
+            if (field.hasModifierProperty(PsiModifier.STATIC) && field.hasModifierProperty(PsiModifier.FINAL)) {
+                PsiExpression initializer = field.getInitializer();
+                if (initializer != null) {
+                    return evaluateConstantExpression(initializer);
+                }
+            }
+        }
+        return null;
     }
 
     /**
