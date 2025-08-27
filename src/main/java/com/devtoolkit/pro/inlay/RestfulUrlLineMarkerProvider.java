@@ -24,7 +24,7 @@ import java.util.List;
 
 public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     private static final Logger LOG = Logger.getInstance(RestfulUrlLineMarkerProvider.class);
-    private static final Icon PLUGIN_ICON = AllIcons.Gutter.ExtAnnotation;
+    private static final Icon PLUGIN_ICON = IconLoader.getIcon("/icons/smallPluginIcon.svg", RestfulUrlLineMarkerProvider.class);
 
     private static final String[] SPRING_MAPPING_ANNOTATIONS = {
         "GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
@@ -902,7 +902,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             // 检查是否是Kotlin文件
             PsiFile file = element.getContainingFile();
             boolean isKotlin = file != null && "Kotlin".equals(file.getLanguage().getDisplayName());
-            
+
             if (isKotlin) {
                 return extractKotlinSwaggerInfo(element);
             } else {
@@ -913,7 +913,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         }
         return info;
     }
-    
+
     /**
      * 提取Java Swagger注解信息
      */
@@ -965,7 +965,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         }
         return info;
     }
-    
+
     /**
      * 提取Kotlin Swagger注解信息
      */
@@ -1020,7 +1020,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return info;
      }
-     
+
      /**
       * 查找包含元素的Kotlin函数
       */
@@ -1038,7 +1038,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return null;
      }
-     
+
      /**
       * 获取Kotlin函数的注解
       */
@@ -1058,7 +1058,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return new Object[0];
      }
-     
+
      /**
       * 获取Kotlin注解名称
       */
@@ -1074,7 +1074,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return null;
      }
-     
+
      /**
       * 提取Kotlin注解字符串值
       */
@@ -1089,7 +1089,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return defaultValue;
      }
-     
+
      /**
       * 获取Kotlin函数参数
       */
@@ -1108,7 +1108,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return new Object[0];
      }
-     
+
      /**
       * 提取Kotlin参数信息
       */
@@ -1120,7 +1120,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                  java.lang.reflect.Method getNameMethod = parameter.getClass().getMethod("getName");
                  Object name = getNameMethod.invoke(parameter);
                  info.name = name != null ? name.toString() : "unknown";
-                 
+
                  // 获取参数类型
                  java.lang.reflect.Method getTypeMethod = parameter.getClass().getMethod("getTypeReference");
                  Object typeRef = getTypeMethod.invoke(parameter);
@@ -1131,7 +1131,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                  } else {
                      info.type = "Any";
                  }
-                 
+
                  info.required = true; // 默认必需
                  return info;
              }
@@ -1140,7 +1140,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          }
          return null;
      }
-     
+
      /**
       * 获取Kotlin函数返回类型
       */
@@ -1298,19 +1298,19 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
 
         // 提取HTTP方法
         String httpMethod = extractHttpMethod(element);
-        
+
         // API标题
         String title = info.summary.isEmpty() ? "API接口" : info.summary;
         markdown.append("## ").append(title).append("\n\n");
-        
+
         // 基本信息
         markdown.append("**请求方式:** ").append(httpMethod.toUpperCase()).append("\n\n");
         markdown.append("**请求URL:** `").append(url).append("`\n\n");
-        
+
         if (!info.description.isEmpty()) {
             markdown.append("**接口描述:** ").append(info.description).append("\n\n");
         }
-        
+
         if (info.tags.length > 0) {
             markdown.append("**标签:** ").append(String.join(", ", info.tags)).append("\n\n");
         }
@@ -1320,7 +1320,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             markdown.append("### 请求参数\n\n");
             markdown.append("| 参数名 | 类型 | 位置 | 必填 | 说明 |\n");
             markdown.append("|--------|------|------|------|------|\n");
-            
+
             for (ParameterInfo param : info.parameters) {
                 markdown.append("| ").append(param.name)
                         .append(" | ").append(param.type)
@@ -1336,7 +1336,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         markdown.append("### 响应信息\n\n");
         markdown.append("| 字段 | 类型 | 说明 |\n");
         markdown.append("|------|------|------|\n");
-        
+
         if (!info.response.type.isEmpty()) {
             markdown.append("| 返回值 | ").append(info.response.type)
                     .append(" | ").append(info.response.description.isEmpty() ? "接口返回数据" : info.response.description)
@@ -1344,7 +1344,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         } else {
             markdown.append("| 返回值 | Object | 接口返回数据 |\n");
         }
-        
+
         return markdown.toString();
     }
 
@@ -1354,25 +1354,25 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     private static String generateCurlCommand(PsiElement element, String url) {
         SwaggerInfo info = extractSwaggerInfo(element);
         StringBuilder curl = new StringBuilder();
-        
+
         // 提取HTTP方法
         String httpMethod = extractHttpMethod(element);
-        
+
         curl.append("curl -X ").append(httpMethod.toUpperCase());
-        
+
         // 添加URL
         curl.append(" \\").append("\n  '").append(url).append("'");
-        
+
         // 添加请求头
         curl.append(" \\").append("\n  -H 'Content-Type: application/json'");
         curl.append(" \\").append("\n  -H 'Accept: application/json'");
-        
+
         // 检查是否有body参数
         boolean hasBodyParam = info.parameters.stream().anyMatch(p -> "body".equals(p.in));
-        
+
         if (hasBodyParam && ("POST".equalsIgnoreCase(httpMethod) || "PUT".equalsIgnoreCase(httpMethod) || "PATCH".equalsIgnoreCase(httpMethod))) {
             curl.append(" \\").append("\n  -d '{");
-            
+
             // 添加示例JSON数据
             boolean first = true;
             for (ParameterInfo param : info.parameters) {
@@ -1381,34 +1381,34 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                         curl.append(",");
                     }
                     curl.append("\n    \"").append(param.name).append("\": ");
-                    
+
                     // 根据类型生成示例值
                     String exampleValue = generateExampleValue(param.type);
                     curl.append(exampleValue);
                     first = false;
                 }
             }
-            
+
             if (first) {
                 // 如果没有具体的body参数，添加通用示例
                 curl.append("\n    \"key\": \"value\"");
             }
-            
+
             curl.append("\n  }'");
         }
-        
+
         // 添加查询参数示例
         java.util.List<ParameterInfo> queryParams = info.parameters.stream()
                 .filter(p -> "query".equals(p.in) || p.in.isEmpty())
                 .collect(java.util.stream.Collectors.toList());
-        
+
         if (!queryParams.isEmpty()) {
             if (!url.contains("?")) {
                 curl.append("?");
             } else {
                 curl.append("&");
             }
-            
+
             for (int i = 0; i < queryParams.size(); i++) {
                 ParameterInfo param = queryParams.get(i);
                 if (i > 0) {
@@ -1417,7 +1417,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                 curl.append(param.name).append("=").append(generateExampleValue(param.type));
             }
         }
-        
+
         return curl.toString();
     }
 
@@ -1475,7 +1475,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         if (type == null || type.isEmpty()) {
             return "\"example\"";
         }
-        
+
         type = type.toLowerCase();
         if (type.contains("string")) {
             return "\"example\"";
@@ -1531,7 +1531,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                     try {
                         String markdown = generateMarkdownDoc(sourceElement, url);
                         CopyPasteManager.getInstance().setContents(new StringSelection(markdown));
-                        
+
                         NotificationGroupManager.getInstance()
                             .getNotificationGroup("RestfulTool")
                             .createNotification("复制成功", "已复制Markdown文档", NotificationType.INFORMATION)
@@ -1555,7 +1555,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                     try {
                         String curlCommand = generateCurlCommand(sourceElement, url);
                         CopyPasteManager.getInstance().setContents(new StringSelection(curlCommand));
-                        
+
                         NotificationGroupManager.getInstance()
                             .getNotificationGroup("RestfulTool")
                             .createNotification("复制成功", "已复制curl命令", NotificationType.INFORMATION)

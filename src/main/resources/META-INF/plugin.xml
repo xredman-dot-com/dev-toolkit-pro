@@ -1,10 +1,7 @@
 <idea-plugin>
     <id>com.devtoolkit.pro</id>
     <name>Dev Toolkit Pro</name>
-    <vendor email="maoba@anybots.cloud" url="https://anybots.cloud">anybots.cloud</vendor>
-
-    <!-- Plugin icon for plugin manager -->
-    <icon>/icons/pluginIcon.svg</icon>
+    <vendor email="maboa@anybots.cloud" url="https://anybots.cloud">anybots.cloud</vendor>
 
     <description><![CDATA[
     IntelliJ IDEA/PyCharm plugin for RESTful API search and Git link copying.
