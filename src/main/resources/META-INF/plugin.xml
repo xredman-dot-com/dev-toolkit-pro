@@ -5,7 +5,7 @@
 
     <description><![CDATA[
     Dev Toolkit Pro is a powerful IntelliJ IDEA and PyCharm plugin designed to enhance developer productivity.
-    
+
     Features:
     - Global fuzzy search for RESTful URLs with keyboard shortcuts
     - Quick navigation to API endpoints
@@ -14,7 +14,7 @@
     - Enhanced development workflow
     - Compatible with IntelliJ IDEA 2023.2+ and PyCharm 2023.2+
     - Support for latest IDE versions (2024.x, 2025.x)
-    
+
     Framework Support:
     - IntelliJ IDEA: Spring Boot, Spring MVC, JAX-RS, FastAPI
     - PyCharm: FastAPI, Flask (coming soon)
@@ -74,43 +74,43 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- RESTful Endpoints Contributor for Choose by Name dialog -->
         <chooseByNameContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointChooseByNameContributor"/>
-        
+
         <!-- RESTful Endpoints Contributor for Search Everywhere dialog -->
         <searchEverywhereContributor id="DevToolkitPro.RestfulEndpoints" implementation="com.devtoolkit.pro.contributors.RestfulEndpointSearchEverywhereContributor$Factory"/>
-        
+
         <!-- RESTful Endpoints Contributor for Symbols tab -->
         <gotoSymbolContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointSymbolContributor"/>
-        
+
         <!-- Inlay Hints Provider for RESTful URL copying - using traditional approach -->
         <codeInsight.inlayProvider language="JAVA" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlInlayHintsProvider"/>
         <codeInsight.inlayProvider language="kotlin" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlInlayHintsProvider"/>
-        
+
         <!-- Line Marker Provider for RESTful URL copying with Gutter Icons -->
         <codeInsight.lineMarkerProvider language="JAVA" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="kotlin" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlLineMarkerProvider"/>
-        
+
         <!-- Inlay Action Handler for URL copying -->
         <codeInsight.inlayActionHandler id="copy.url.action" implementationClass="com.devtoolkit.pro.inlay.CopyUrlActionHandler"/>
-        
+
         <!-- Notification Group for RestfulTool -->
         <notificationGroup id="RestfulTool" displayType="BALLOON" key="notification.group.restfultool"/>
     </extensions>
 
     <actions>
         <!-- Global RESTful URL Search Action -->
-        <action id="DevToolkitPro.SearchRestfulUrls" 
-                class="com.devtoolkit.pro.actions.SearchRestfulUrlsAction" 
-                text="Search RESTful URLs" 
+        <action id="DevToolkitPro.SearchRestfulUrls"
+                class="com.devtoolkit.pro.actions.SearchRestfulUrlsAction"
+                text="Search RESTful URLs"
                 description="Global fuzzy search for RESTful URLs">
             <keyboard-shortcut keymap="$default" first-keystroke="control shift R"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift R"/>
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta shift R"/>
         </action>
-        
+
         <!-- Direct Search Everywhere Action for Restful Endpoints -->
-        <action id="DevToolkitPro.SearchRestfulEndpointsEverywhere" 
-                class="com.devtoolkit.pro.actions.SearchRestfulEndpointsEverywhereAction" 
-                text="Search Restful Endpoints" 
+        <action id="DevToolkitPro.SearchRestfulEndpointsEverywhere"
+                class="com.devtoolkit.pro.actions.SearchRestfulEndpointsEverywhereAction"
+                text="Search Restful Endpoints"
                 description="Open Search Everywhere with Restful Endpoints tab">
             <keyboard-shortcut keymap="$default" first-keystroke="control alt R"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta alt R"/>
@@ -119,22 +119,22 @@
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta BACK_SLASH"/>
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta BACK_SLASH"/>
         </action>
-        
+
         <!-- Copy Editor Git Link Action -->
-        <action id="DevToolkitPro.CopyEditorGitLink" 
-                class="com.devtoolkit.pro.actions.CopyEditorGitLinkAction" 
-                text="Copy Git Link" 
+        <action id="DevToolkitPro.CopyEditorGitLink"
+                class="com.devtoolkit.pro.actions.CopyEditorGitLinkAction"
+                text="Copy Git Link"
                 description="Copy GitHub/GitLab link for current file/line">
             <!-- 编辑器中的Git链接复制功能 -->
         </action>
-        
+
         <!-- Add action to Tools menu -->
         <group id="DevToolkitPro.ToolsMenu" text="Dev Toolkit Pro" description="Dev Toolkit Pro actions">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <reference ref="DevToolkitPro.SearchRestfulUrls"/>
             <reference ref="DevToolkitPro.SearchRestfulEndpointsEverywhere"/>
         </group>
-        
+
         <!-- Add Git link action to editor context menu -->
         <group id="DevToolkitPro.EditorContextMenu" text="Dev Toolkit Pro">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>

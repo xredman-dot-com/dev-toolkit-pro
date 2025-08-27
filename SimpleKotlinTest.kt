@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/v1")
 class SimpleKotlinTest {
+    // 测试路径合并功能
     
     @GetMapping("/users")
     fun getUsers() {

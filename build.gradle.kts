@@ -58,7 +58,7 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("232")  // 支持从2023.2开始
+        sinceBuild.set("242")  // 支持从2024.2开始，匹配当前IDE版本
         untilBuild.set("253.*")  // 支持到2025.3版本
     }
 
