@@ -21,6 +21,10 @@ class DevToolkitProToolWindow(private val project: Project) {
         val sqlToolsPanel = SqlToolsPanel(project)
         tabbedPane.addTab("SQL Tools", sqlToolsPanel.getContent())
         
+        // 添加接口文档标签页
+        val apiDocPanel = ApiDocPanel(project)
+        tabbedPane.addTab("接口文档", apiDocPanel.getContent())
+        
         // 可以在这里添加更多标签页
         // tabbedPane.addTab("Other Tools", otherPanel.getContent())
     }

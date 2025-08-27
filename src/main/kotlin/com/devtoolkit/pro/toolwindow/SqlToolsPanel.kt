@@ -1,10 +1,8 @@
 package com.devtoolkit.pro.toolwindow
 
 import com.devtoolkit.pro.services.SqlFormatterService
-import com.intellij.notification.Notification
-import com.intellij.notification.NotificationType
-import com.intellij.notification.Notifications
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.EditorTextField
 import com.intellij.openapi.fileTypes.FileTypeManager
@@ -60,16 +58,15 @@ class SqlToolsPanel(private val project: Project) {
             val sql = sqlEditor.text.trim()
             if (sql.isNotEmpty()) {
                 try {
-                    val cleanedSql = removeCommentsAndEmptyLines(sql)
-                    val formattedSql = sqlFormatterService.formatSql(cleanedSql)
+                    val formattedSql = sqlFormatterService.formatSql(sql)
                     sqlEditor.text = formattedSql
                     copyToClipboard(formattedSql)
-                    showNotification("格式化的SQL已复制到剪贴板", NotificationType.INFORMATION)
+                    Messages.showInfoMessage(project, "格式化的SQL已复制到剪贴板", "DevToolkitPro")
                 } catch (e: Exception) {
-                    showNotification("格式化失败: ${e.message}", NotificationType.ERROR)
+                    Messages.showErrorDialog(project, "格式化失败: ${e.message}", "DevToolkitPro")
                 }
             } else {
-                showNotification("请输入SQL语句", NotificationType.WARNING)
+                Messages.showWarningDialog(project, "请输入SQL语句", "DevToolkitPro")
             }
         }
         
@@ -77,16 +74,15 @@ class SqlToolsPanel(private val project: Project) {
             val sql = sqlEditor.text.trim()
             if (sql.isNotEmpty()) {
                 try {
-                    val cleanedSql = removeCommentsAndEmptyLines(sql)
-                    val compressedSql = sqlFormatterService.compressSql(cleanedSql)
+                    val compressedSql = sqlFormatterService.compressSql(sql)
                     sqlEditor.text = compressedSql
                     copyToClipboard(compressedSql)
-                    showNotification("压缩的SQL已复制到剪贴板", NotificationType.INFORMATION)
+                    Messages.showInfoMessage(project, "压缩的SQL已复制到剪贴板", "DevToolkitPro")
                 } catch (e: Exception) {
-                    showNotification("压缩失败: ${e.message}", NotificationType.ERROR)
+                    Messages.showErrorDialog(project, "压缩失败: ${e.message}", "DevToolkitPro")
                 }
             } else {
-                showNotification("请输入SQL语句", NotificationType.WARNING)
+                Messages.showWarningDialog(project, "请输入SQL语句", "DevToolkitPro")
             }
         }
     }
@@ -97,47 +93,6 @@ class SqlToolsPanel(private val project: Project) {
         clipboard.setContents(selection, null)
     }
     
-    private fun removeCommentsAndEmptyLines(sql: String): String {
-        return sql.lines()
-            .map { line ->
-                // 移除单行注释 (-- 注释)
-                val commentIndex = line.indexOf("--")
-                if (commentIndex != -1) {
-                    line.substring(0, commentIndex)
-                } else {
-                    line
-                }
-            }
-            .map { line ->
-                // 移除多行注释 (/* */ 注释)
-                var result = line
-                var startIndex = result.indexOf("/*")
-                while (startIndex != -1) {
-                    val endIndex = result.indexOf("*/", startIndex + 2)
-                    if (endIndex != -1) {
-                        result = result.substring(0, startIndex) + result.substring(endIndex + 2)
-                        startIndex = result.indexOf("/*")
-                    } else {
-                        result = result.substring(0, startIndex)
-                        break
-                    }
-                }
-                result
-            }
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .joinToString("\n")
-    }
-    
-    private fun showNotification(message: String, type: NotificationType) {
-        val notification = Notification(
-            "DevToolkitPro",
-            "SQL工具",
-            message,
-            type
-        )
-        Notifications.Bus.notify(notification, project)
-    }
 
     
     fun getContent(): JComponent {

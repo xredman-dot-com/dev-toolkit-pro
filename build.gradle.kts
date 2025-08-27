@@ -25,6 +25,22 @@ dependencies {
     // SQL格式化依赖
     implementation("com.github.vertical-blank:sql-formatter:2.0.4")
     
+    // Apache POI - Word文档生成 (使用稳定的4.1.2版本)
+    implementation("org.apache.poi:poi:4.1.2")
+    implementation("org.apache.poi:poi-ooxml:4.1.2")
+    implementation("org.apache.poi:poi-scratchpad:4.1.2")
+    implementation("org.apache.poi:ooxml-schemas:1.4")
+    // 使用与POI 4.1.2兼容的XMLBeans版本
+    implementation("org.apache.xmlbeans:xmlbeans:3.1.0")
+    
+    // Jackson - JSON解析
+    implementation("com.fasterxml.jackson.core:jackson-core:2.15.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
+    
+    // HTTP客户端 - 用于获取swagger数据
+
+    
     // 测试依赖 - 简化配置避免冲突
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
