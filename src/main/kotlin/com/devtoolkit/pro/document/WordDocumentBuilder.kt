@@ -254,6 +254,25 @@ class WordDocumentBuilder {
         }
         
         /**
+         * 设置列宽度
+         */
+        fun setColumnWidths(vararg widths: Int): WordTableBuilder {
+            val ctTbl = table.ctTbl
+            val ctTblGrid = if (ctTbl.tblGrid != null) ctTbl.tblGrid else ctTbl.addNewTblGrid()
+            
+            // 清除现有的列定义
+            ctTblGrid.gridColList.clear()
+            
+            // 添加新的列宽度定义
+            widths.forEach { width ->
+                val ctGridCol = ctTblGrid.addNewGridCol()
+                ctGridCol.w = BigInteger.valueOf(width.toLong())
+            }
+            
+            return this
+        }
+        
+        /**
          * 新行
          */
         fun newRow(): WordTableBuilder {
@@ -352,7 +371,7 @@ class WordDocumentBuilder {
          * 设置单元格内容
          */
         private fun setCell(cell: XWPFTableCell, text: String, isHeader: Boolean) {
-            cell.verticalAlignment = XWPFTableCell.XWPFVertAlign.CENTER
+            cell.verticalAlignment = XWPFTableCell.XWPFVertAlign.TOP
             
             val ctTc = cell.ctTc
             val ctTcPr = if (ctTc.isSetTcPr) ctTc.tcPr else ctTc.addNewTcPr()
@@ -360,26 +379,49 @@ class WordDocumentBuilder {
             
             // 设置背景颜色
             if (isHeader) {
-                ctShd.fill = "d9d9d9"
+                ctShd.fill = "f2f2f2"
+            }
+            
+            // 设置单元格边距
+            val ctTcMar = if (ctTcPr.isSetTcMar) ctTcPr.tcMar else ctTcPr.addNewTcMar()
+            val ctTblWidth = CTTblWidth.Factory.newInstance()
+            ctTblWidth.w = BigInteger.valueOf(100)
+            ctTblWidth.type = STTblWidth.DXA
+            ctTcMar.left = ctTblWidth
+            ctTcMar.right = ctTblWidth
+            ctTcMar.top = CTTblWidth.Factory.newInstance().apply {
+                w = BigInteger.valueOf(50)
+                type = STTblWidth.DXA
+            }
+            ctTcMar.bottom = CTTblWidth.Factory.newInstance().apply {
+                w = BigInteger.valueOf(50)
+                type = STTblWidth.DXA
             }
             
             // 创建内部内容
             val p = if (cell.paragraphs.isNotEmpty()) cell.paragraphs[0] else cell.addParagraph()
             p.alignment = ParagraphAlignment.LEFT
-            p.indentationLeft = 100
             
-            // 设置单元格内部边距信息
+            // 设置段落间距
             val ppr = if (p.ctp.isSetPPr) p.ctp.pPr else p.ctp.addNewPPr()
             val ctSpacing = if (ppr.isSetSpacing) ppr.spacing else ppr.addNewSpacing()
-            ctSpacing.after = BigInteger.valueOf(10)
-            ctSpacing.before = BigInteger.valueOf(5)
+            ctSpacing.after = BigInteger.valueOf(0)
+            ctSpacing.before = BigInteger.valueOf(0)
             ctSpacing.lineRule = STLineSpacingRule.AUTO
-            ctSpacing.line = BigInteger.valueOf(300)
+            ctSpacing.line = BigInteger.valueOf(240) // 1.2倍行距
             
             val run = p.createRun()
             if (text.isNotEmpty()) {
-                run.setText(text)
+                // 处理长文本换行
+                val lines = text.split("\n")
+                lines.forEachIndexed { index, line ->
+                    if (index > 0) {
+                        run.addBreak()
+                    }
+                    run.setText(line)
+                }
             }
+            
             run.fontSize = if (isHeader) FONT_SIZE_SMALL else FONT_SIZE_SMALL
             if (isHeader) {
                 run.isBold = true

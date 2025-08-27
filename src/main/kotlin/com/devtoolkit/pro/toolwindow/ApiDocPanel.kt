@@ -2,6 +2,7 @@ package com.devtoolkit.pro.toolwindow
 
 import com.devtoolkit.pro.swagger.ApiDocumentGenerator
 import com.devtoolkit.pro.swagger.ProgressCallback
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.progress.ProgressIndicator
@@ -25,11 +26,19 @@ import javax.swing.*
  */
 class ApiDocPanel(private val project: Project) {
     
+    companion object {
+        private const val DOCUMENT_NAME_KEY = "api.doc.document.name"
+        private const val SWAGGER_URL_KEY = "api.doc.swagger.url"
+        private const val OUTPUT_PATH_KEY = "api.doc.output.path"
+        private const val DEFAULT_SWAGGER_URL = "https://petstore.swagger.io/v2/swagger.json"
+    }
+    
     private val documentNameField = JBTextField()
     private val swaggerUrlField = JBTextField()
     private val outputPathField = TextFieldWithBrowseButton()
     private val generateButton = JButton("生成接口文档")
     private val panel = JPanel(BorderLayout())
+    private val propertiesComponent = PropertiesComponent.getInstance()
     
     init {
         initializeComponents()
@@ -37,9 +46,9 @@ class ApiDocPanel(private val project: Project) {
     }
     
     private fun initializeComponents() {
-        // 设置默认值
-        documentNameField.text = "API接口文档"
-        swaggerUrlField.text = ""
+        // 从持久化存储中恢复用户输入，如果没有则使用默认值
+        documentNameField.text = propertiesComponent.getValue(DOCUMENT_NAME_KEY, "API接口文档")
+        swaggerUrlField.text = propertiesComponent.getValue(SWAGGER_URL_KEY, DEFAULT_SWAGGER_URL)
         
         // 设置输出路径选择器
         outputPathField.addBrowseFolderListener(
@@ -51,7 +60,7 @@ class ApiDocPanel(private val project: Project) {
         
         // 设置默认输出路径为用户下载目录
         val defaultOutputPath = System.getProperty("user.home") + "/Downloads"
-        outputPathField.text = defaultOutputPath
+        outputPathField.text = propertiesComponent.getValue(OUTPUT_PATH_KEY, defaultOutputPath)
         
         // 构建表单
         val formPanel = FormBuilder.createFormBuilder()
@@ -93,6 +102,11 @@ class ApiDocPanel(private val project: Project) {
             Messages.showErrorDialog("请选择输出路径", "输入错误")
             return
         }
+        
+        // 保存用户输入到持久化存储
+        propertiesComponent.setValue(DOCUMENT_NAME_KEY, documentName)
+        propertiesComponent.setValue(SWAGGER_URL_KEY, swaggerUrl)
+        propertiesComponent.setValue(OUTPUT_PATH_KEY, outputPath)
         
         // 确保输出目录存在
         val outputDir = File(outputPath)

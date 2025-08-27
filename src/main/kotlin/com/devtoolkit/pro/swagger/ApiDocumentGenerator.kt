@@ -85,22 +85,24 @@ class ApiDocumentGenerator {
         val totalRows = 5 + paramRows + responseRows
         
         val tableBuilder = builder.table(totalRows, 6)
+            // 设置列宽度：标题列(1200), 内容列(2000), 标题列(1000), 内容列(2000), 描述列(2500), 示例列(1300)
+            .setColumnWidths(1200, 2000, 1000, 2000, 2500, 1300)
         
         // API基本信息部分
-        tableBuilder.mergedCell("接口地址", 1, true)
+        tableBuilder.mergedCell("接口路径", 1, true)
             .mergedCell(api.path, 5, false)
             .newRow()
-            .hCell("请求方式")
+            .hCell("请求方法")
             .mergedCell(api.method.uppercase(), 2, false)
-            .hCell("操作ID")
+            .hCell("操作标识")
             .mergedCell(api.operationId, 2, false)
             .newRow()
-            .hCell("消费类型")
+            .hCell("请求类型")
             .mergedCell(api.consumes.joinToString(", "), 2, false)
-            .hCell("生产类型")
+            .hCell("响应类型")
             .mergedCell(api.produces.joinToString(", "), 2, false)
             .newRow()
-            .mergedCell("接口描述", 1, true)
+            .mergedCell("接口说明", 1, true)
             .mergedCell(api.description.ifEmpty { api.summary }, 5, false)
         
         // 请求参数部分
@@ -108,12 +110,12 @@ class ApiDocumentGenerator {
             tableBuilder.newRow()
                 .mergedCell("请求参数", 6, true)
                 .newRow()
-                .hCell("参数名称")
-                .hCell("参数位置")
-                .hCell("参数类型")
-                .hCell("是否必需")
-                .hCell("参数描述")
-                .hCell("示例值")
+                .hCell("参数名")
+                .hCell("位置")
+                .hCell("数据类型")
+                .hCell("必填")
+                .hCell("说明")
+                .hCell("示例")
             
             api.parameters.forEach { param ->
                 tableBuilder.newRow()
@@ -129,10 +131,10 @@ class ApiDocumentGenerator {
         // 响应结果部分
         if (api.responses.isNotEmpty()) {
             tableBuilder.newRow()
-                .mergedCell("响应结果", 6, true)
+                .mergedCell("响应信息", 6, true)
                 .newRow()
                 .hCell("状态码")
-                .hCell("描述")
+                .hCell("说明")
                 .mergedCell("数据结构", 4, true)
             
             api.responses.forEach { response ->
