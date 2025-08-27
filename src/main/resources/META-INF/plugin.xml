@@ -79,6 +79,15 @@
         
         <!-- RESTful Endpoints Contributor for Symbols tab -->
         <gotoSymbolContributor implementation="com.devtoolkit.pro.contributors.RestfulEndpointSymbolContributor"/>
+        
+        <!-- Inlay Hints Provider for RESTful URL copying - using traditional approach -->
+        <codeInsight.inlayProvider language="JAVA" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlInlayHintsProvider"/>
+        
+        <!-- Line Marker Provider for RESTful URL copying with Gutter Icons -->
+        <codeInsight.lineMarkerProvider language="JAVA" implementationClass="com.devtoolkit.pro.inlay.RestfulUrlLineMarkerProvider"/>
+        
+        <!-- Inlay Action Handler for URL copying -->
+        <codeInsight.inlayActionHandler id="copy.url.action" implementationClass="com.devtoolkit.pro.inlay.CopyUrlActionHandler"/>
     </extensions>
 
     <actions>
