@@ -22,6 +22,9 @@ dependencies {
     // 移除显式的kotlin-stdlib依赖，让IntelliJ平台自动管理
     // implementation("org.jetbrains.kotlin:kotlin-stdlib")
     
+    // SQL格式化依赖
+    implementation("com.github.vertical-blank:sql-formatter:2.0.4")
+    
     // 测试依赖 - 简化配置避免冲突
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

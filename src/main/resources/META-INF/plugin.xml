@@ -52,6 +52,11 @@
 
         <!-- Notification Group for RestfulTool -->
         <notificationGroup id="RestfulTool" displayType="BALLOON" key="notification.group.restfultool"/>
+        
+        <!-- Tool Window -->
+        <toolWindow id="DevToolkitPro" secondary="true" anchor="right" 
+                    factoryClass="com.devtoolkit.pro.toolwindow.DevToolkitProToolWindowFactory"
+                    icon="/icons/pluginIcon.svg"/>
     </extensions>
 
     <actions>
