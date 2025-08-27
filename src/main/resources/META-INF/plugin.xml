@@ -88,6 +88,9 @@
         
         <!-- Inlay Action Handler for URL copying -->
         <codeInsight.inlayActionHandler id="copy.url.action" implementationClass="com.devtoolkit.pro.inlay.CopyUrlActionHandler"/>
+        
+        <!-- Notification Group for RestfulTool -->
+        <notificationGroup id="RestfulTool" displayType="BALLOON" key="notification.group.restfultool"/>
     </extensions>
 
     <actions>

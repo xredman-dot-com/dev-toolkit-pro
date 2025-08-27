@@ -9,6 +9,13 @@ import com.intellij.codeInsight.hints.presentation.PresentationFactory;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
+import com.intellij.openapi.editor.colors.TextAttributesKey;
+import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.editor.markup.EffectType;
+import com.intellij.ui.JBColor;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.psi.*;
 import com.intellij.psi.tree.IElementType;
@@ -142,6 +149,13 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
                             new StringSelection(displayText), null
                         );
+                        
+                        // 显示复制成功的通知
+                        NotificationGroupManager.getInstance()
+                            .getNotificationGroup("RestfulTool")
+                            .createNotification("复制成功", "已复制: " + displayText, NotificationType.INFORMATION)
+                            .notify(method.getProject());
+                        
                         return null;
                     });
 
@@ -165,16 +179,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
          * 创建baseline对齐的presentation
          */
         private InlayPresentation createBaselineAlignedPresentation(PresentationFactory factory, String fullUrl) {
-            // 使用roundWithBackground来创建一个带背景的presentation，这样可以更好地控制对齐
-            InlayPresentation iconPresentation = factory.text(" 📋 ");
-            InlayPresentation urlPresentation = factory.text(fullUrl);
-
-            // 使用roundWithBackground来包装，这样可以确保baseline对齐
-            InlayPresentation iconWithBackground = factory.roundWithBackground(iconPresentation);
-            InlayPresentation urlWithBackground = factory.roundWithBackground(urlPresentation);
-
-            // 使用seq组合，但现在每个部分都有相同的baseline
-            return factory.seq(iconWithBackground, factory.text(" "), urlWithBackground);
+            // 创建文字presentation
+            InlayPresentation textPresentation = factory.text(fullUrl);
+            
+            // 使用roundWithBackground来创建带浅色圆角背景的presentation
+            // 这会自动应用IntelliJ的默认Inlay背景色
+            return factory.roundWithBackground(textPresentation);
         }
 
         // 已移动到RestfulUrlService中作为公共方法
