@@ -3,10 +3,14 @@ package com.devtoolkit.pro.utils;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-// 暂时注释掉Git相关导入以解决兼容性问题
 // import git4idea.GitUtil;
 // import git4idea.repo.GitRepository;
 // import git4idea.repo.GitRepositoryManager;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,19 +20,20 @@ import java.util.regex.Pattern;
  * 用于生成当前编辑器文件的在线Git链接
  */
 public class GitLinkUtil {
-    
+
     // GitHub URL模式
     private static final Pattern GITHUB_SSH_PATTERN = Pattern.compile("git@github\\.com:([^/]+)/(.+)\\.git");
     private static final Pattern GITHUB_HTTPS_PATTERN = Pattern.compile("https://github\\.com/([^/]+)/(.+?)(?:\\.git)?/?$");
-    
-    // GitLab URL模式  
+
+    // GitLab URL模式
     private static final Pattern GITLAB_SSH_PATTERN = Pattern.compile("git@gitlab\\.com:([^/]+)/(.+)\\.git");
     private static final Pattern GITLAB_HTTPS_PATTERN = Pattern.compile("https://gitlab\\.com/([^/]+)/(.+?)(?:\\.git)?/?$");
-    
+
     // 自托管GitLab模式
     private static final Pattern CUSTOM_GITLAB_SSH_PATTERN = Pattern.compile("git@([^:]+):([^/]+)/(.+)\\.git");
     private static final Pattern CUSTOM_GITLAB_HTTPS_PATTERN = Pattern.compile("https://([^/]+)/([^/]+)/(.+?)(?:\\.git)?/?$");
-    
+    private static final Pattern CUSTOM_GITLAB_HTTP_PATTERN = Pattern.compile("http://([^/]+)/([^/]+)/(.+?)(?:\\.git)?/?$");
+
     /**
      * Git仓库信息类
      */
@@ -39,7 +44,7 @@ public class GitLinkUtil {
         private GitPlatform platform;
         private String baseUrl;
         private String currentBranch;
-        
+
         public GitRepoInfo(String host, String owner, String repo, GitPlatform platform, String currentBranch) {
             this.host = host;
             this.owner = owner;
@@ -48,7 +53,7 @@ public class GitLinkUtil {
             this.currentBranch = currentBranch != null ? currentBranch : "main";
             this.baseUrl = generateBaseUrl();
         }
-        
+
         private String generateBaseUrl() {
             switch (platform) {
                 case GITHUB:
@@ -61,7 +66,7 @@ public class GitLinkUtil {
                     return null;
             }
         }
-        
+
         // Getters
         public String getHost() { return host; }
         public String getOwner() { return owner; }
@@ -70,7 +75,7 @@ public class GitLinkUtil {
         public String getBaseUrl() { return baseUrl; }
         public String getCurrentBranch() { return currentBranch; }
     }
-    
+
     /**
      * Git平台枚举
      */
@@ -79,109 +84,126 @@ public class GitLinkUtil {
         GITLAB("GitLab"),
         CUSTOM_GITLAB("GitLab (Custom)"),
         UNKNOWN("Unknown");
-        
+
         private final String displayName;
-        
+
         GitPlatform(String displayName) {
             this.displayName = displayName;
         }
-        
+
         public String getDisplayName() {
             return displayName;
         }
     }
-    
+
     /**
      * 检查项目是否为Git仓库
-     * 暂时禁用以解决兼容性问题
      */
     public static boolean isGitRepository(Project project) {
-        // 暂时注释掉Git API调用以解决兼容性问题
-        /*
         try {
-            GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
-            return !manager.getRepositories().isEmpty();
+            if (project == null || project.getBasePath() == null) {
+                return false;
+            }
+
+            // 检查项目根目录是否存在.git文件夹
+            File gitDir = new File(project.getBasePath(), ".git");
+            return gitDir.exists() && (gitDir.isDirectory() || gitDir.isFile());
         } catch (Exception e) {
             return false;
         }
-        */
-        return false;
     }
-    
+
     /**
      * 获取当前文件的Git仓库信息
-     * 暂时禁用以解决兼容性问题
      */
     public static GitRepoInfo getGitRepoInfo(Project project, VirtualFile file) {
-        // 暂时注释掉Git API调用以解决兼容性问题
-        /*
         try {
-            GitRepositoryManager manager = GitRepositoryManager.getInstance(project);
-            GitRepository repo = GitUtil.getRepositoryForFile(project, file);
-            
-            if (repo == null) {
+            if (project == null || project.getBasePath() == null) {
+                System.err.println("Project or basePath is null");
                 return null;
             }
-            
-            String remoteUrl = getRemoteUrl(repo);
-            String currentBranch = getCurrentBranch(repo);
-            
+
+            System.err.println("Project basePath: " + project.getBasePath());
+
+            String remoteUrl = getRemoteUrl(project);
+            String currentBranch = getCurrentBranch(project);
+
+            System.err.println("Remote URL: " + remoteUrl);
+            System.err.println("Current branch: " + currentBranch);
+
             if (remoteUrl != null) {
-                return parseRemoteUrl(remoteUrl, currentBranch);
+                GitRepoInfo repoInfo = parseRemoteUrl(remoteUrl, currentBranch);
+                System.err.println("Parsed repo info: " + (repoInfo != null ? "success" : "failed"));
+                return repoInfo;
+            } else {
+                System.err.println("Remote URL is null, cannot create repo info");
             }
         } catch (Exception e) {
             System.err.println("Failed to get git repo info: " + e.getMessage());
+            e.printStackTrace();
         }
-        */
         return null;
     }
-    
+
     /**
      * 获取当前分支名
-     * 暂时禁用以解决兼容性问题
      */
-    private static String getCurrentBranch(Object repo) {
-        // 暂时注释掉Git API调用以解决兼容性问题
-        /*
+    private static String getCurrentBranch(Project project) {
         try {
-            return repo.getCurrentBranch() != null ? repo.getCurrentBranch().getName() : "main";
+            File gitDir = new File(project.getBasePath(), ".git");
+            if (!gitDir.exists()) {
+                return "main";
+            }
+
+            // 读取HEAD文件获取当前分支
+            File headFile = new File(gitDir, "HEAD");
+            if (headFile.exists()) {
+                String head = Files.readString(headFile.toPath()).trim();
+                if (head.startsWith("ref: refs/heads/")) {
+                    return head.substring("ref: refs/heads/".length());
+                }
+            }
+            return "main";
         } catch (Exception e) {
             return "main";
         }
-        */
-        return "main";
     }
-    
+
     /**
      * 获取远程仓库URL
-     * 暂时禁用以解决兼容性问题
      */
-    private static String getRemoteUrl(Object repo) {
-        // 暂时注释掉Git API调用以解决兼容性问题
-        /*
+    private static String getRemoteUrl(Project project) {
         try {
-            // 尝试获取origin远程仓库URL
-            if (repo.getRemotes().stream().anyMatch(remote -> "origin".equals(remote.getName()))) {
-                return repo.getRemotes().stream()
-                    .filter(remote -> "origin".equals(remote.getName()))
-                    .findFirst()
-                    .map(remote -> remote.getFirstUrl())
-                    .orElse(null);
+            File gitDir = new File(project.getBasePath(), ".git");
+            if (!gitDir.exists()) {
+                return null;
             }
-            
-            // 如果没有origin，使用第一个远程仓库
-            return repo.getRemotes().stream()
-                .findFirst()
-                .map(remote -> remote.getFirstUrl())
-                .orElse(null);
+
+            // 读取config文件获取远程仓库URL
+            File configFile = new File(gitDir, "config");
+            if (configFile.exists()) {
+                String config = Files.readString(configFile.toPath());
+                // 查找origin远程仓库的URL
+                String[] lines = config.split("\n");
+                boolean inOriginSection = false;
+                for (String line : lines) {
+                    line = line.trim();
+                    if (line.equals("[remote \"origin\"]")) {
+                        inOriginSection = true;
+                    } else if (line.startsWith("[") && inOriginSection) {
+                        inOriginSection = false;
+                    } else if (inOriginSection && line.startsWith("url = ")) {
+                        return line.substring("url = ".length());
+                    }
+                }
+            }
+            return null;
         } catch (Exception e) {
             System.err.println("Failed to get remote URL: " + e.getMessage());
             return null;
         }
-        */
-        return null;
     }
-    
+
     /**
      * 解析远程仓库URL
      */
@@ -189,46 +211,52 @@ public class GitLinkUtil {
         if (remoteUrl == null || remoteUrl.isEmpty()) {
             return null;
         }
-        
+
         // GitHub SSH
         Matcher matcher = GITHUB_SSH_PATTERN.matcher(remoteUrl);
         if (matcher.matches()) {
             return new GitRepoInfo("github.com", matcher.group(1), matcher.group(2), GitPlatform.GITHUB, currentBranch);
         }
-        
+
         // GitHub HTTPS
         matcher = GITHUB_HTTPS_PATTERN.matcher(remoteUrl);
         if (matcher.matches()) {
             return new GitRepoInfo("github.com", matcher.group(1), matcher.group(2), GitPlatform.GITHUB, currentBranch);
         }
-        
+
         // GitLab SSH
         matcher = GITLAB_SSH_PATTERN.matcher(remoteUrl);
         if (matcher.matches()) {
             return new GitRepoInfo("gitlab.com", matcher.group(1), matcher.group(2), GitPlatform.GITLAB, currentBranch);
         }
-        
+
         // GitLab HTTPS
         matcher = GITLAB_HTTPS_PATTERN.matcher(remoteUrl);
         if (matcher.matches()) {
             return new GitRepoInfo("gitlab.com", matcher.group(1), matcher.group(2), GitPlatform.GITLAB, currentBranch);
         }
-        
+
         // 自托管GitLab SSH
         matcher = CUSTOM_GITLAB_SSH_PATTERN.matcher(remoteUrl);
         if (matcher.matches()) {
             return new GitRepoInfo(matcher.group(1), matcher.group(2), matcher.group(3), GitPlatform.CUSTOM_GITLAB, currentBranch);
         }
-        
+
         // 自托管GitLab HTTPS
         matcher = CUSTOM_GITLAB_HTTPS_PATTERN.matcher(remoteUrl);
         if (matcher.matches()) {
             return new GitRepoInfo(matcher.group(1), matcher.group(2), matcher.group(3), GitPlatform.CUSTOM_GITLAB, currentBranch);
         }
-        
+
+        // 自托管GitLab HTTP
+        matcher = CUSTOM_GITLAB_HTTP_PATTERN.matcher(remoteUrl);
+        if (matcher.matches()) {
+            return new GitRepoInfo(matcher.group(1), matcher.group(2), matcher.group(3), GitPlatform.CUSTOM_GITLAB, currentBranch);
+        }
+
         return null;
     }
-    
+
     /**
      * 生成文件的在线链接
      */
@@ -236,11 +264,11 @@ public class GitLinkUtil {
         if (repoInfo == null || repoInfo.getBaseUrl() == null) {
             return null;
         }
-        
+
         String baseUrl = repoInfo.getBaseUrl();
         String path = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
         String branch = repoInfo.getCurrentBranch();
-        
+
         switch (repoInfo.getPlatform()) {
             case GITHUB:
                 return baseUrl + "/blob/" + branch + "/" + path;
@@ -251,7 +279,7 @@ public class GitLinkUtil {
                 return null;
         }
     }
-    
+
     /**
      * 生成文件特定行的在线链接
      */
@@ -260,7 +288,7 @@ public class GitLinkUtil {
         if (fileUrl == null) {
             return null;
         }
-        
+
         switch (repoInfo.getPlatform()) {
             case GITHUB:
                 return fileUrl + "#L" + lineNumber;
@@ -271,7 +299,7 @@ public class GitLinkUtil {
                 return fileUrl;
         }
     }
-    
+
     /**
      * 生成文件行范围的在线链接
      */
@@ -280,7 +308,7 @@ public class GitLinkUtil {
         if (fileUrl == null) {
             return null;
         }
-        
+
         switch (repoInfo.getPlatform()) {
             case GITHUB:
                 return fileUrl + "#L" + startLine + "-L" + endLine;
@@ -291,7 +319,7 @@ public class GitLinkUtil {
                 return fileUrl;
         }
     }
-    
+
     /**
      * 获取文件相对于项目根目录的路径
      */
@@ -302,7 +330,7 @@ public class GitLinkUtil {
             if (projectRoot != null) {
                 String projectPath = projectRoot.getPath();
                 String filePath = file.getPath();
-                
+
                 if (filePath.startsWith(projectPath)) {
                     return filePath.substring(projectPath.length() + 1);
                 }
@@ -310,10 +338,10 @@ public class GitLinkUtil {
         } catch (Exception e) {
             System.err.println("Failed to get relative path: " + e.getMessage());
         }
-        
+
         return null;
     }
-    
+
     /**
      * 从编辑器获取当前行号
      */
@@ -325,7 +353,7 @@ public class GitLinkUtil {
             return 1;
         }
     }
-    
+
     /**
      * 从编辑器获取选中的行范围
      */
@@ -333,16 +361,16 @@ public class GitLinkUtil {
         try {
             int startOffset = editor.getSelectionModel().getSelectionStart();
             int endOffset = editor.getSelectionModel().getSelectionEnd();
-            
+
             if (startOffset == endOffset) {
                 // 没有选中文本，返回当前行
                 int currentLine = getCurrentLineNumber(editor);
                 return new int[]{currentLine, currentLine};
             }
-            
+
             int startLine = editor.getDocument().getLineNumber(startOffset) + 1;
             int endLine = editor.getDocument().getLineNumber(endOffset) + 1;
-            
+
             return new int[]{startLine, endLine};
         } catch (Exception e) {
             return new int[]{1, 1};

@@ -120,12 +120,18 @@
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta BACK_SLASH"/>
         </action>
 
-        <!-- Copy Editor Git Link Action -->
-        <action id="DevToolkitPro.CopyEditorGitLink"
-                class="com.devtoolkit.pro.actions.CopyEditorGitLinkAction"
+        <!-- Copy Git Link Action -->
+        <action id="DevToolkitPro.CopyGitLink"
+                class="com.devtoolkit.pro.actions.CopyGitLinkAction"
                 text="Copy Git Link"
-                description="Copy GitHub/GitLab link for current file/line">
-            <!-- 编辑器中的Git链接复制功能 -->
+                description="Copy Git link for current line">
+        </action>
+
+        <!-- Open Git Link Action -->
+        <action id="DevToolkitPro.OpenGitLink"
+                class="com.devtoolkit.pro.actions.OpenGitLinkAction"
+                text="Open Git Link"
+                description="Open Git link in browser for current line">
         </action>
 
         <!-- Add action to Tools menu -->
@@ -135,10 +141,11 @@
             <reference ref="DevToolkitPro.SearchRestfulEndpointsEverywhere"/>
         </group>
 
-        <!-- Add Git link action to editor context menu -->
+        <!-- Add Git link actions to editor context menu -->
         <group id="DevToolkitPro.EditorContextMenu" text="Dev Toolkit Pro">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <reference ref="DevToolkitPro.CopyEditorGitLink"/>
+            <reference ref="DevToolkitPro.CopyGitLink"/>
+            <reference ref="DevToolkitPro.OpenGitLink"/>
         </group>
     </actions>
 </idea-plugin>
