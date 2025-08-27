@@ -24,6 +24,10 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseAdapter;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     private static final Logger LOG = Logger.getInstance(RestfulUrlLineMarkerProvider.class);
@@ -1478,24 +1482,130 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
      * 根据类型生成示例值
      */
     private static String generateExampleValue(String type) {
+        return generateExampleValue(type, new HashSet<>(), 0);
+    }
+
+    /**
+     * 递归生成示例值，支持对象属性展开，防止循环引用
+     * @param type 类型名称
+     * @param visitedTypes 已访问的类型集合，用于防止循环引用
+     * @param depth 当前递归深度，防止过深递归
+     * @return JSON格式的示例值
+     */
+    private static String generateExampleValue(String type, Set<String> visitedTypes, int depth) {
         if (type == null || type.isEmpty()) {
             return "\"example\"";
         }
 
-        type = type.toLowerCase();
-        if (type.contains("string")) {
-            return "\"example\"";
-        } else if (type.contains("int") || type.contains("long")) {
-            return "123";
-        } else if (type.contains("double") || type.contains("float")) {
-            return "123.45";
-        } else if (type.contains("boolean")) {
-            return "true";
-        } else if (type.contains("date")) {
-            return "\"2024-01-01\"";
-        } else {
-            return "\"example\"";
+        // 防止过深递归
+        if (depth > 3) {
+            return "\"...\"";
         }
+
+        // 防止循环引用
+        if (visitedTypes.contains(type)) {
+            return "\"circular_reference\"";
+        }
+
+        String lowerType = type.toLowerCase();
+
+        // 基本类型处理
+        if (lowerType.contains("string")) {
+            return "\"example\"";
+        } else if (lowerType.contains("int") || lowerType.contains("long")) {
+            return "123";
+        } else if (lowerType.contains("double") || lowerType.contains("float")) {
+            return "123.45";
+        } else if (lowerType.contains("boolean")) {
+            return "true";
+        } else if (lowerType.contains("date")) {
+            return "\"2024-01-01\"";
+        } else if (lowerType.contains("list") || lowerType.contains("array")) {
+            // 处理数组/列表类型
+            String elementType = extractGenericType(type);
+            if (elementType != null) {
+                visitedTypes.add(type);
+                String elementValue = generateExampleValue(elementType, visitedTypes, depth + 1);
+                visitedTypes.remove(type);
+                return "[" + elementValue + "]";
+            }
+            return "[\"example\"]";
+        } else if (lowerType.contains("map")) {
+            // 处理Map类型
+            return "{\"key\": \"value\"}";
+        } else {
+            // 处理自定义对象类型
+            return generateObjectExample(type, visitedTypes, depth);
+        }
+    }
+
+    /**
+     * 生成对象示例，尝试解析对象的属性
+     */
+    private static String generateObjectExample(String type, Set<String> visitedTypes, int depth) {
+        visitedTypes.add(type);
+
+        try {
+            // 这里可以根据实际需要扩展，解析类的字段
+            // 目前提供一些常见对象类型的示例
+            Map<String, String> commonObjects = getCommonObjectExamples();
+
+            String className = extractClassName(type);
+            if (commonObjects.containsKey(className.toLowerCase())) {
+                return commonObjects.get(className.toLowerCase());
+            }
+
+            // 默认对象结构
+            StringBuilder obj = new StringBuilder("{");
+            obj.append("\n    \"").append(className.toLowerCase()).append("Id\": 1,");
+            obj.append("\n    \"name\": \"example\",");
+            obj.append("\n    \"description\": \"example description\"");
+            obj.append("\n  }");
+
+            return obj.toString();
+        } finally {
+            visitedTypes.remove(type);
+        }
+    }
+
+    /**
+     * 提取泛型类型
+     */
+    private static String extractGenericType(String type) {
+        if (type.contains("<") && type.contains(">")) {
+            int start = type.indexOf('<') + 1;
+            int end = type.lastIndexOf('>');
+            if (start < end) {
+                return type.substring(start, end).trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 提取类名
+     */
+    private static String extractClassName(String type) {
+        String className = type;
+        if (className.contains(".")) {
+            className = className.substring(className.lastIndexOf('.') + 1);
+        }
+        if (className.contains("<")) {
+            className = className.substring(0, className.indexOf('<'));
+        }
+        return className;
+    }
+
+    /**
+     * 获取常见对象类型的示例
+     */
+    private static Map<String, String> getCommonObjectExamples() {
+        Map<String, String> examples = new HashMap<>();
+        examples.put("user", "{\n    \"id\": 1,\n    \"username\": \"john_doe\",\n    \"email\": \"john@example.com\",\n    \"age\": 25\n  }");
+        examples.put("product", "{\n    \"id\": 1,\n    \"name\": \"Product Name\",\n    \"price\": 99.99,\n    \"category\": \"Electronics\"\n  }");
+        examples.put("order", "{\n    \"id\": 1,\n    \"userId\": 1,\n    \"total\": 199.99,\n    \"status\": \"pending\"\n  }");
+        examples.put("address", "{\n    \"street\": \"123 Main St\",\n    \"city\": \"New York\",\n    \"zipCode\": \"10001\",\n    \"country\": \"USA\"\n  }");
+        return examples;
     }
 
     /**
@@ -1517,13 +1627,13 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
          */
         private JMenuItem createStyledMenuItem(String text, Icon icon) {
             JMenuItem menuItem = new JMenuItem(text, icon);
-            
+
             // 设置图标和文字的间距
             menuItem.setIconTextGap(8);
-            
+
             // 设置内边距
             menuItem.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
-            
+
             // 添加悬停效果
             menuItem.addMouseListener(new MouseAdapter() {
                 @Override
@@ -1531,14 +1641,14 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                     menuItem.setBackground(new JBColor(new Color(230, 240, 255), new Color(75, 110, 175)));
                     menuItem.setOpaque(true);
                 }
-                
+
                 @Override
                 public void mouseExited(MouseEvent e) {
                     menuItem.setBackground(null);
                     menuItem.setOpaque(false);
                 }
             });
-            
+
             return menuItem;
         }
 
