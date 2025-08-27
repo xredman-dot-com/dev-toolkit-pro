@@ -1345,37 +1345,253 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             markdown.append("**标签:** ").append(String.join(", ", info.tags)).append("\n\n");
         }
 
-        // 请求参数表格
+        // 请求参数表格（级联处理）
         if (!info.parameters.isEmpty()) {
             markdown.append("### 请求参数\n\n");
-            markdown.append("| 参数名 | 类型 | 位置 | 必填 | 说明 |\n");
-            markdown.append("|--------|------|------|------|------|\n");
+            markdown.append("| 参数名 | JSON路径 | 类型 | 位置 | 必填 | 说明 |\n");
+            markdown.append("|--------|----------|------|------|------|------|\n");
 
             for (ParameterInfo param : info.parameters) {
-                markdown.append("| ").append(param.name)
-                        .append(" | ").append(param.type)
-                        .append(" | ").append(param.in.isEmpty() ? "query" : param.in)
-                        .append(" | ").append(param.required ? "是" : "否")
-                        .append(" | ").append(param.description)
-                        .append(" |\n");
+                // 生成级联参数结构
+                generateParameterRows(markdown, param, "$", new HashSet<>(), 0);
             }
             markdown.append("\n");
+
+            // 添加请求示例
+            markdown.append("### 请求示例\n\n");
+            markdown.append("```json\n");
+            markdown.append(generateRequestExample(info.parameters));
+            markdown.append("\n```\n\n");
         }
 
-        // 响应信息
+        // 响应信息（级联处理）
         markdown.append("### 响应信息\n\n");
-        markdown.append("| 字段 | 类型 | 说明 |\n");
-        markdown.append("|------|------|------|\n");
+        markdown.append("| 字段名 | JSON路径 | 类型 | 说明 |\n");
+        markdown.append("|--------|----------|------|------|\n");
 
         if (!info.response.type.isEmpty()) {
-            markdown.append("| 返回值 | ").append(info.response.type)
-                    .append(" | ").append(info.response.description.isEmpty() ? "接口返回数据" : info.response.description)
-                    .append(" |\n");
+            // 生成级联响应结构
+            generateResponseRows(markdown, info.response, "$", new HashSet<>(), 0);
         } else {
-            markdown.append("| 返回值 | Object | 接口返回数据 |\n");
+            markdown.append("| 返回值 | $ | Object | 接口返回数据 |\n");
         }
+        markdown.append("\n");
+
+        // 添加响应示例
+        markdown.append("### 响应示例\n\n");
+        markdown.append("```json\n");
+        markdown.append(generateResponseExample(info.response));
+        markdown.append("\n```\n\n");
 
         return markdown.toString();
+    }
+
+    /**
+     * 生成级联参数行
+     */
+    private static void generateParameterRows(StringBuilder markdown, ParameterInfo param, String basePath, Set<String> visitedTypes, int depth) {
+        if (depth > 3 || visitedTypes.contains(param.type)) {
+            return;
+        }
+
+        String currentPath = basePath.equals("$") ? "$." + param.name : basePath + "." + param.name;
+        
+        // 添加当前参数行
+        markdown.append("| ").append(param.name)
+                .append(" | ").append(currentPath)
+                .append(" | ").append(param.type)
+                .append(" | ").append(param.in.isEmpty() ? "query" : param.in)
+                .append(" | ").append(param.required ? "是" : "否")
+                .append(" | ").append(param.description)
+                .append(" |\n");
+
+        // 如果是复杂对象类型，递归展开属性
+        if (isComplexType(param.type)) {
+            visitedTypes.add(param.type);
+            generateObjectProperties(markdown, param.type, currentPath, param.in, visitedTypes, depth + 1);
+            visitedTypes.remove(param.type);
+        }
+    }
+
+    /**
+     * 生成级联响应行
+     */
+    private static void generateResponseRows(StringBuilder markdown, ResponseInfo response, String basePath, Set<String> visitedTypes, int depth) {
+        if (depth > 3 || visitedTypes.contains(response.type)) {
+            return;
+        }
+
+        // 添加根响应行
+        markdown.append("| 返回值 | $ | ").append(response.type)
+                .append(" | ").append(response.description.isEmpty() ? "接口返回数据" : response.description)
+                .append(" |\n");
+
+        // 如果是复杂对象类型，递归展开属性
+        if (isComplexType(response.type)) {
+            visitedTypes.add(response.type);
+            generateObjectProperties(markdown, response.type, "$", "response", visitedTypes, depth + 1);
+            visitedTypes.remove(response.type);
+        }
+    }
+
+    /**
+     * 生成对象属性
+     */
+    private static void generateObjectProperties(StringBuilder markdown, String type, String basePath, String location, Set<String> visitedTypes, int depth) {
+        if (depth > 3) {
+            return;
+        }
+
+        String className = extractClassName(type);
+        Map<String, String> properties = getObjectProperties(className);
+        
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            String propName = entry.getKey();
+            String propType = entry.getValue();
+            String propPath = basePath + "." + propName;
+            
+            // 处理数组类型的路径
+            if (propType.toLowerCase().contains("list") || propType.toLowerCase().contains("array")) {
+                propPath = basePath + "[]." + propName;
+            }
+            
+            markdown.append("| ").append(propName)
+                    .append(" | ").append(propPath)
+                    .append(" | ").append(propType)
+                    .append(" | ").append(location)
+                    .append(" | 否 | ").append(getPropertyDescription(propName))
+                    .append(" |\n");
+            
+            // 递归处理复杂类型
+            if (isComplexType(propType) && !visitedTypes.contains(propType)) {
+                visitedTypes.add(propType);
+                generateObjectProperties(markdown, propType, propPath, location, visitedTypes, depth + 1);
+                visitedTypes.remove(propType);
+            }
+        }
+    }
+
+    /**
+     * 生成请求示例
+     */
+    private static String generateRequestExample(java.util.List<ParameterInfo> parameters) {
+        if (parameters.isEmpty()) {
+            return "{}";
+        }
+
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        
+        boolean first = true;
+        for (ParameterInfo param : parameters) {
+            if ("body".equals(param.in)) {
+                if (!first) {
+                    json.append(",");
+                }
+                json.append("\n  \"").append(param.name).append("\": ");
+                json.append(generateExampleValue(param.type, new HashSet<>(), 0));
+                first = false;
+            }
+        }
+        
+        if (first) {
+            // 如果没有body参数，生成一个通用示例
+            json.append("\n  \"example\": \"value\"");
+        }
+        
+        json.append("\n}");
+        return json.toString();
+    }
+
+    /**
+     * 生成响应示例
+     */
+    private static String generateResponseExample(ResponseInfo response) {
+        if (response.type.isEmpty()) {
+            return "{\n  \"code\": 200,\n  \"message\": \"success\",\n  \"data\": {}\n}";
+        }
+        
+        return generateExampleValue(response.type, new HashSet<>(), 0);
+    }
+
+    /**
+     * 判断是否为复杂类型
+     */
+    private static boolean isComplexType(String type) {
+        if (type == null || type.isEmpty()) {
+            return false;
+        }
+        
+        String lowerType = type.toLowerCase();
+        return !lowerType.contains("string") && 
+               !lowerType.contains("int") && 
+               !lowerType.contains("long") && 
+               !lowerType.contains("double") && 
+               !lowerType.contains("float") && 
+               !lowerType.contains("boolean") && 
+               !lowerType.contains("date") &&
+               !lowerType.equals("object");
+    }
+
+    /**
+     * 获取对象属性
+     */
+    private static Map<String, String> getObjectProperties(String className) {
+        Map<String, String> properties = new HashMap<>();
+        
+        // 根据类名返回常见属性
+        switch (className.toLowerCase()) {
+            case "user":
+                properties.put("id", "Long");
+                properties.put("username", "String");
+                properties.put("email", "String");
+                properties.put("age", "Integer");
+                properties.put("profile", "UserProfile");
+                break;
+            case "product":
+                properties.put("id", "Long");
+                properties.put("name", "String");
+                properties.put("price", "Double");
+                properties.put("category", "String");
+                properties.put("tags", "List<String>");
+                break;
+            case "order":
+                properties.put("id", "Long");
+                properties.put("userId", "Long");
+                properties.put("items", "List<OrderItem>");
+                properties.put("total", "Double");
+                properties.put("status", "String");
+                break;
+            default:
+                // 默认属性
+                properties.put("id", "Long");
+                properties.put("name", "String");
+                properties.put("description", "String");
+                properties.put("createdAt", "Date");
+                break;
+        }
+        
+        return properties;
+    }
+
+    /**
+     * 获取属性描述
+     */
+    private static String getPropertyDescription(String propertyName) {
+        switch (propertyName.toLowerCase()) {
+            case "id": return "唯一标识";
+            case "name": return "名称";
+            case "username": return "用户名";
+            case "email": return "邮箱地址";
+            case "age": return "年龄";
+            case "price": return "价格";
+            case "total": return "总计";
+            case "status": return "状态";
+            case "description": return "描述";
+            case "createdat": return "创建时间";
+            case "updatedat": return "更新时间";
+            default: return "字段描述";
+        }
     }
 
     /**
@@ -1566,25 +1782,64 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         visitedTypes.add(type);
 
         try {
-            // 这里可以根据实际需要扩展，解析类的字段
-            // 目前提供一些常见对象类型的示例
-            Map<String, String> commonObjects = getCommonObjectExamples();
-
             String className = extractClassName(type);
+            
+            // 首先尝试使用预定义的常见对象示例
+            Map<String, String> commonObjects = getCommonObjectExamples();
             if (commonObjects.containsKey(className.toLowerCase())) {
                 return commonObjects.get(className.toLowerCase());
             }
 
-            // 默认对象结构
+            // 使用getObjectProperties方法生成更详细的对象结构
+            Map<String, String> properties = getObjectProperties(className);
             StringBuilder obj = new StringBuilder("{");
-            obj.append("\n    \"").append(className.toLowerCase()).append("Id\": 1,");
-            obj.append("\n    \"name\": \"example\",");
-            obj.append("\n    \"description\": \"example description\"");
+            
+            boolean first = true;
+            for (Map.Entry<String, String> entry : properties.entrySet()) {
+                if (!first) {
+                    obj.append(",");
+                }
+                obj.append("\n    \"").append(entry.getKey()).append("\": ");
+                
+                // 根据属性类型生成相应的示例值
+                String propType = entry.getValue();
+                if (isComplexType(propType) && depth < 2) {
+                    // 递归生成复杂类型的示例
+                    obj.append(generateExampleValue(propType, visitedTypes, depth + 1));
+                } else {
+                    // 生成基本类型的示例值
+                    obj.append(generateSimpleExampleValue(propType));
+                }
+                first = false;
+            }
+            
             obj.append("\n  }");
-
             return obj.toString();
         } finally {
             visitedTypes.remove(type);
+        }
+    }
+    
+    /**
+     * 生成简单类型的示例值
+     */
+    private static String generateSimpleExampleValue(String type) {
+        String lowerType = type.toLowerCase();
+        
+        if (lowerType.contains("string")) {
+            return "\"example\"";
+        } else if (lowerType.contains("int") || lowerType.contains("long")) {
+            return "1";
+        } else if (lowerType.contains("double") || lowerType.contains("float")) {
+            return "1.0";
+        } else if (lowerType.contains("boolean")) {
+            return "true";
+        } else if (lowerType.contains("date")) {
+            return "\"2024-01-01T00:00:00Z\"";
+        } else if (lowerType.contains("list") || lowerType.contains("array")) {
+            return "[\"example\"]";
+        } else {
+            return "\"example\"";
         }
     }
 
