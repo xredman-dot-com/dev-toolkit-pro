@@ -7,6 +7,8 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.util.IconLoader;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
@@ -891,7 +893,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         public void navigate(MouseEvent e, PsiElement elt) {
             // 创建弹出菜单
             JPopupMenu popupMenu = new JPopupMenu();
-            
+
             // 添加"拷贝URL"菜单项
             JMenuItem copyUrlItem = new JMenuItem("拷贝URL");
             copyUrlItem.addActionListener(new ActionListener() {
@@ -899,10 +901,16 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                 public void actionPerformed(ActionEvent actionEvent) {
                     // 复制URL到剪贴板
                     CopyPasteManager.getInstance().setContents(new StringSelection(url));
+
+                    // 显示复制成功的通知
+                    NotificationGroupManager.getInstance()
+                        .getNotificationGroup("RestfulTool")
+                        .createNotification("复制成功", "已复制: " + url, NotificationType.INFORMATION)
+                        .notify(elt.getProject());
                 }
             });
             popupMenu.add(copyUrlItem);
-            
+
             // 显示弹出菜单
             popupMenu.show(e.getComponent(), e.getX(), e.getY());
         }
