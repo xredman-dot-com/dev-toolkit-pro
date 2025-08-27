@@ -125,40 +125,20 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
         @Override
         public boolean collect(@NotNull PsiElement element, @NotNull Editor editor, @NotNull InlayHintsSink sink) {
             try {
-                LOG.info("[InlayHints-Collect] *** COLLECT CALLED *** Processing element: " + element.getClass().getSimpleName() + 
-                         ", text: '" + element.getText().substring(0, Math.min(50, element.getText().length())) + "...");
-                
                 // 处理Java方法
                 if (element instanceof PsiMethod) {
-                    LOG.info("[InlayHints-Collect] Found Java method: " + ((PsiMethod) element).getName());
                     return processJavaMethod((PsiMethod) element, sink);
                 }
                 
-                // 处理Kotlin函数 - 使用更通用的方法
+                // 处理Kotlin函数
                 if (isKotlinFunction(element)) {
-                    LOG.info("[InlayHints-Collect] Found Kotlin function");
                     return processKotlinFunction(element, sink);
                 }
-                
-                // 跳过其他元素的处理，避免重复显示
-                // 注释掉通用元素处理，因为Kotlin函数已经在上面处理了
-                /*
-                // 处理其他可能包含注解的元素（如LeafPsiElement等）
-                String elementText = element.getText();
-                if (elementText != null) {
-                    for (String annotation : SPRING_MAPPING_ANNOTATIONS) {
-                        if (elementText.contains("@" + annotation)) {
-                            LOG.info("[InlayHints-Collect] Found element with annotation: " + annotation + ", element type: " + element.getClass().getSimpleName());
-                            return processGenericElement(element, sink);
-                        }
-                    }
-                }
-                */
                 
                 return true;
                 
             } catch (Exception e) {
-                LOG.error("[InlayHints-Collect] Error processing element: " + element, e);
+                LOG.error("Error processing element in InlayHints: " + element, e);
                 return true;
             }
         }
@@ -379,8 +359,6 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
         }
         
         private boolean processKotlinFunction(PsiElement element, InlayHintsSink sink) {
-            LOG.info("[InlayHints-Kotlin] Processing Kotlin function: " + element.getClass().getName() + ", text: " + element.getText().substring(0, Math.min(100, element.getText().length())));
-            
             try {
                 // 尝试多种方法获取Kotlin函数的注解，只使用第一种成功的方法
                 List<PsiElement> annotations = new ArrayList<>();
@@ -397,11 +375,10 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                             if (!entries.isEmpty()) {
                                 annotations.addAll(entries);
                                 foundAnnotations = true;
-                                LOG.info("[InlayHints-Kotlin] Found " + entries.size() + " annotations via getAnnotationEntries");
                             }
                         }
                     } catch (Exception e) {
-                        LOG.info("[InlayHints-Kotlin] getAnnotationEntries failed: " + e.getMessage());
+                        // 忽略反射异常
                     }
                 }
                 
@@ -420,62 +397,47 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                                         annotations.add(annotation);
                                     }
                                     foundAnnotations = true;
-                                    LOG.info("[InlayHints-Kotlin] Found " + annotationArray.length + " annotations via getModifierList");
                                 }
                             }
                         }
                     } catch (Exception e) {
-                        LOG.info("[InlayHints-Kotlin] getModifierList failed: " + e.getMessage());
+                        // 忽略反射异常
                     }
                 }
                 
                 // 方法3: 直接查找子元素中的注解
                 if (!foundAnnotations) {
                     PsiElement[] children = element.getChildren();
-                    LOG.info("[InlayHints-Kotlin] Searching in " + children.length + " children for annotations");
                     for (PsiElement child : children) {
                         String childClassName = child.getClass().getName();
-                        LOG.info("[InlayHints-Kotlin] Child class: " + childClassName + ", text: " + child.getText());
                         if (childClassName.contains("Annotation") || childClassName.contains("KtAnnotation")) {
                             annotations.add(child);
                             foundAnnotations = true;
-                            LOG.info("[InlayHints-Kotlin] Found annotation child: " + childClassName);
                         }
                     }
                 }
-                
-                LOG.info("[InlayHints-Kotlin] Total annotations found: " + annotations.size());
                 
                 // 处理找到的注解
                 for (PsiElement annotation : annotations) {
                     String annotationText = annotation.getText();
                     String annotationName = extractKotlinAnnotationName(annotationText);
                     
-                    LOG.info("[InlayHints-Kotlin] Processing annotation: " + annotationName + ", text: " + annotationText);
-                    
                     if (!isSpringMappingAnnotation(annotationName)) {
-                        LOG.info("[InlayHints-Kotlin] Skipping non-Spring annotation: " + annotationName);
                         continue;
                     }
                     
                     // 提取路径值
                     String path = extractKotlinAnnotationValue(annotationText);
-                    LOG.info("[InlayHints-Kotlin] Extracted path: " + path);
-                    
                     if (path == null || path.isEmpty()) {
-                        LOG.info("[InlayHints-Kotlin] Path is null or empty, skipping");
                         continue;
                     }
                     
                     // 获取HTTP方法
                     String httpMethod = getHttpMethodFromAnnotation(annotationName);
-                    LOG.info("[InlayHints-Kotlin] HTTP method: " + httpMethod);
                     
-                    // 构建完整URL - 使用与LineMarker相同的逻辑
+                    // 构建完整URL
                     String fullUrl = buildFullUrlFromKotlin(element, path);
                     String displayText = httpMethod + " " + fullUrl;
-                    
-                    LOG.info("[InlayHints-Kotlin] Final display text: " + displayText);
                     
                     // 创建Inlay presentation
                     PresentationFactory factory = getFactory();
@@ -502,12 +464,10 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     // 在注解后添加inlay hint
                     sink.addInlineElement(annotation.getTextRange().getEndOffset(), false, withTooltip, false);
                     
-                    LOG.info("[InlayHints-Kotlin] Successfully added inlay hint for: " + displayText);
-                    
                     break; // 只处理第一个匹配的注解
                 }
             } catch (Exception e) {
-                LOG.error("[InlayHints-Kotlin] Error processing Kotlin function: " + e.getMessage(), e);
+                LOG.error("Error processing Kotlin function in InlayHints: " + e.getMessage(), e);
             }
             return true;
         }
