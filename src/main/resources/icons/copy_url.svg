@@ -1,0 +1,12 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="linkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 链接图标 -->
+  <path d="M6.5 3.5A2.5 2.5 0 0 1 9 1h2.5A2.5 2.5 0 0 1 14 3.5v2A2.5 2.5 0 0 1 11.5 8H10a.5.5 0 0 1 0-1h1.5A1.5 1.5 0 0 0 13 5.5v-2A1.5 1.5 0 0 0 11.5 2H9A1.5 1.5 0 0 0 7.5 3.5v1a.5.5 0 0 1-1 0v-1z" fill="url(#linkGradient)"/>
+  <path d="M4.5 8A2.5 2.5 0 0 1 7 5.5h1.5a.5.5 0 0 1 0 1H7A1.5 1.5 0 0 0 5.5 8v2A1.5 1.5 0 0 0 7 11.5h2.5A1.5 1.5 0 0 0 11 10v-1a.5.5 0 0 1 1 0v1a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 10V8z" fill="url(#linkGradient)"/>
+</svg>

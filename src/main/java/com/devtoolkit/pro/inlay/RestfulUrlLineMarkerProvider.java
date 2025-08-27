@@ -15,16 +15,21 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseAdapter;
 import java.util.Collection;
 import java.util.List;
 
 public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
     private static final Logger LOG = Logger.getInstance(RestfulUrlLineMarkerProvider.class);
     private static final Icon PLUGIN_ICON = IconLoader.getIcon("/icons/smallPluginIcon.svg", RestfulUrlLineMarkerProvider.class);
+    private static final Icon COPY_URL_ICON = IconLoader.getIcon("/icons/copy_url.svg", RestfulUrlLineMarkerProvider.class);
+    private static final Icon COPY_MARKDOWN_ICON = IconLoader.getIcon("/icons/copy_markdown.svg", RestfulUrlLineMarkerProvider.class);
+    private static final Icon COPY_CURL_ICON = IconLoader.getIcon("/icons/copy_curl.svg", RestfulUrlLineMarkerProvider.class);
 
     private static final String[] SPRING_MAPPING_ANNOTATIONS = {
         "GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
@@ -1492,6 +1497,49 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         }
     }
 
+    /**
+     * 为菜单项添加悬停效果
+     */
+    private static void addHoverEffect(JMenuItem menuItem) {
+        // 设置菜单项的默认样式
+        menuItem.setOpaque(true);
+        menuItem.setBorderPainted(false);
+        menuItem.setFocusPainted(false);
+        
+        // 获取系统默认颜色
+        Color tempDefaultBackground = UIManager.getColor("MenuItem.background");
+        Color tempHoverBackground = UIManager.getColor("MenuItem.selectionBackground");
+        Color tempDefaultForeground = UIManager.getColor("MenuItem.foreground");
+        Color tempHoverForeground = UIManager.getColor("MenuItem.selectionForeground");
+        
+        // 如果系统颜色为null，使用默认值
+        final Color defaultBackground = tempDefaultBackground != null ? tempDefaultBackground : Color.WHITE;
+        final Color hoverBackground = tempHoverBackground != null ? tempHoverBackground : new Color(0x4A90E2);
+        final Color defaultForeground = tempDefaultForeground != null ? tempDefaultForeground : Color.BLACK;
+        final Color hoverForeground = tempHoverForeground != null ? tempHoverForeground : Color.WHITE;
+        
+        // 设置初始颜色
+        menuItem.setBackground(defaultBackground);
+        menuItem.setForeground(defaultForeground);
+        
+        // 添加鼠标监听器
+        menuItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                menuItem.setBackground(hoverBackground);
+                menuItem.setForeground(hoverForeground);
+                menuItem.repaint();
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                menuItem.setBackground(defaultBackground);
+                menuItem.setForeground(defaultForeground);
+                menuItem.repaint();
+            }
+        });
+    }
+
     private static class GutterIconNavigationHandler implements com.intellij.codeInsight.daemon.GutterIconNavigationHandler<PsiElement> {
         private final String url;
         private final PsiElement sourceElement;
@@ -1507,7 +1555,8 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             JPopupMenu popupMenu = new JPopupMenu();
 
             // 添加"拷贝URL"菜单项
-            JMenuItem copyUrlItem = new JMenuItem("拷贝URL");
+            JMenuItem copyUrlItem = new JMenuItem("拷贝URL", COPY_URL_ICON);
+            addHoverEffect(copyUrlItem);
             copyUrlItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
@@ -1524,7 +1573,8 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             popupMenu.add(copyUrlItem);
 
             // 添加"复制Markdown"菜单项
-            JMenuItem copyMarkdownItem = new JMenuItem("复制Markdown");
+            JMenuItem copyMarkdownItem = new JMenuItem("复制Markdown", COPY_MARKDOWN_ICON);
+            addHoverEffect(copyMarkdownItem);
             copyMarkdownItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
@@ -1548,7 +1598,8 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             popupMenu.add(copyMarkdownItem);
 
             // 添加"复制curl"菜单项
-            JMenuItem copyCurlItem = new JMenuItem("复制curl");
+            JMenuItem copyCurlItem = new JMenuItem("复制curl", COPY_CURL_ICON);
+            addHoverEffect(copyCurlItem);
             copyCurlItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
