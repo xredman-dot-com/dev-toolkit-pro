@@ -1506,16 +1506,16 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         menuItem.setBorderPainted(false);
         menuItem.setFocusPainted(false);
         
-        // 获取系统默认颜色
-        Color tempDefaultBackground = UIManager.getColor("MenuItem.background");
-        Color tempHoverBackground = UIManager.getColor("MenuItem.selectionBackground");
-        Color tempDefaultForeground = UIManager.getColor("MenuItem.foreground");
-        Color tempHoverForeground = UIManager.getColor("MenuItem.selectionForeground");
+        // 使用IntelliJ IDEA的标准菜单颜色
+        Color tempDefaultBackground = UIManager.getColor("PopupMenu.background");
+        Color tempHoverBackground = UIManager.getColor("List.selectionBackground");
+        Color tempDefaultForeground = UIManager.getColor("PopupMenu.foreground");
+        Color tempHoverForeground = UIManager.getColor("List.selectionForeground");
         
-        // 如果系统颜色为null，使用默认值
-        final Color defaultBackground = tempDefaultBackground != null ? tempDefaultBackground : Color.WHITE;
-        final Color hoverBackground = tempHoverBackground != null ? tempHoverBackground : new Color(0x4A90E2);
-        final Color defaultForeground = tempDefaultForeground != null ? tempDefaultForeground : Color.BLACK;
+        // 如果系统颜色为null，使用IntelliJ主题的备用颜色
+        final Color defaultBackground = tempDefaultBackground != null ? tempDefaultBackground : new Color(0x3C3F41);
+        final Color hoverBackground = tempHoverBackground != null ? tempHoverBackground : new Color(0x4B6EAF);
+        final Color defaultForeground = tempDefaultForeground != null ? tempDefaultForeground : new Color(0xBBBBBB);
         final Color hoverForeground = tempHoverForeground != null ? tempHoverForeground : Color.WHITE;
         
         // 设置初始颜色
