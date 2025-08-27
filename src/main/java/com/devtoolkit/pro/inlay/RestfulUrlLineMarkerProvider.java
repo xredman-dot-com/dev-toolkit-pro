@@ -36,7 +36,8 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             PsiFile file = element.getContainingFile();
             if (file != null && "Kotlin".equals(file.getLanguage().getDisplayName())) {
                 LOG.warn("[LineMarker-DEBUG] Processing Kotlin element: " + element.getClass().getSimpleName() +
-                        ", text: '" + element.getText() + "', file: " + file.getName());
+                        ", text: '" + element.getText() + "', file: " + file.getName() +
+                        ", hashCode: " + element.hashCode() + ", textRange: " + element.getTextRange());
             }
 
             // 处理Java注解的标识符（叶子元素）
@@ -47,8 +48,12 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
 
             // 处理Kotlin注解 - 检查是否是Kotlin注解的标识符
             if (isKotlinAnnotationIdentifier(element)) {
-                LOG.warn("[LineMarker-Debug] Detected Kotlin annotation identifier, delegating to handleKotlinAnnotation");
-                return handleKotlinAnnotation(element);
+                LOG.warn("[LineMarker-Debug] Detected Kotlin annotation identifier, delegating to handleKotlinAnnotation, hashCode: " + element.hashCode());
+                LineMarkerInfo<?> result = handleKotlinAnnotation(element);
+                if (result != null) {
+                    LOG.warn("[LineMarker-Debug] Created LineMarkerInfo for element: " + element.getText() + ", hashCode: " + element.hashCode());
+                }
+                return result;
             }
 
             LOG.debug("[LineMarker] Element not processed: " + element.getClass().getSimpleName());
@@ -110,7 +115,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         return new LineMarkerInfo<>(
             element,
             element.getTextRange(),
-            null, // 不使用图标
+            AllIcons.Actions.Copy, // 使用复制图标
             psiElement -> "Copy RESTful URL: " + fullUrl,
             new GutterIconNavigationHandler(fullUrl),
             GutterIconRenderer.Alignment.RIGHT,
@@ -143,7 +148,11 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                 return null;
             }
 
-
+            // 检查注解是否在方法上，而不是在类上
+            if (!isAnnotationOnMethod(ktAnnotationEntry)) {
+                LOG.info("[LineMarker-Kotlin-Debug] Annotation is on class level, skipping");
+                return null;
+            }
 
             LOG.info("[LineMarker-Kotlin-Debug] ========== Extracting path from annotation ===========");
             String path = extractPathFromKotlinAnnotation(ktAnnotationEntry);
@@ -163,7 +172,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             return new LineMarkerInfo<>(
                 element,
                 element.getTextRange(),
-                null, // 不使用图标
+                AllIcons.Actions.Copy, // 使用复制图标
                 psiElement -> "Copy RESTful URL: " + fullUrl,
                 new GutterIconNavigationHandler(fullUrl),
                 GutterIconRenderer.Alignment.RIGHT,
@@ -189,79 +198,25 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
             String elementClassName = element.getClass().getSimpleName();
             String elementText = element.getText();
 
-            // 扩展处理范围，包括更多可能的Kotlin注解元素类型
-            boolean shouldProcess = "KtNameReferenceExpression".equals(elementClassName) || 
-                                  "KtAnnotationEntry".equals(elementClassName) ||
+            // 只处理注解相关的元素类型，避免重复处理
+            boolean shouldProcess = "KtNameReferenceExpression".equals(elementClassName) ||
                                   "KtConstructorCalleeExpression".equals(elementClassName) ||
-                                  "KtFunction".equals(elementClassName) ||
-                                  "KtNamedFunction".equals(elementClassName) ||
-                                  "KtClass".equals(elementClassName) ||
-                                  elementClassName.contains("Function") ||
                                   ("LeafPsiElement".equals(elementClassName) && element.getNode() != null &&
                                    "IDENTIFIER".equals(element.getNode().getElementType().toString()));
 
             if (shouldProcess) {
                 LOG.warn("[LineMarker-DEBUG] Processing Kotlin element: " + elementClassName + ", text: '" + elementText + "', file: " + file.getName());
 
-                // 直接检查元素文本是否是Spring注解名
-                if (isSpringMappingAnnotation(elementText)) {
-                    LOG.warn("[LineMarker-Kotlin] Found Spring mapping annotation identifier: " + elementText);
-                    return true;
-                }
-
-                // 检查是否是注解的一部分
-                PsiElement parent = element.getParent();
-                while (parent != null && !"KtFile".equals(parent.getClass().getSimpleName())) {
-                    String parentClassName = parent.getClass().getSimpleName();
-                    if ("KtAnnotationEntry".equals(parentClassName)) {
-                        // 找到了注解条目，检查注解名称
-                        String annotationName = getKotlinAnnotationName(parent);
-                        if (annotationName != null && isSpringMappingAnnotation(annotationName)) {
-                            LOG.warn("[LineMarker-Kotlin] Found Spring annotation in parent: " + annotationName);
-                            return true;
-                        }
-                    }
-                    parent = parent.getParent();
-                }
-
-                // 查找包含此元素的KtFunction或KtClass
-                PsiElement ktFunction = findParentOfType(element, "KtFunction");
-                if (ktFunction == null) {
-                    ktFunction = findParentOfType(element, "KtNamedFunction");
-                }
-                PsiElement ktClass = findParentOfType(element, "KtClass");
-
-                if (ktFunction != null) {
-                    LOG.warn("[LineMarker-Kotlin] Found KtFunction/KtNamedFunction parent, checking annotations");
-                    Object[] annotations = getKotlinAnnotations(ktFunction);
-                    if (annotations != null && annotations.length > 0) {
-                        LOG.warn("[LineMarker-Kotlin] Found " + annotations.length + " annotations on function");
-                        for (Object annotation : annotations) {
-                            String annotationName = getKotlinAnnotationName(annotation);
-                            LOG.warn("[LineMarker-Kotlin] Function annotation: " + annotationName);
-                            if (annotationName != null && isSpringMappingAnnotation(annotationName)) {
-                                LOG.warn("[LineMarker-Kotlin] Found Spring mapping annotation on function: " + annotationName);
-                                return true;
-                            }
-                        }
+                // 只处理KtConstructorCalleeExpression类型的元素，这是注解名称的直接容器
+                if ("KtConstructorCalleeExpression".equals(elementClassName)) {
+                    // 直接检查元素文本是否是Spring注解名
+                    if (isSpringMappingAnnotation(elementText)) {
+                        LOG.warn("[LineMarker-Kotlin] Found Spring mapping annotation identifier: " + elementText);
+                        return true;
                     }
                 }
 
-                if (ktClass != null) {
-                    LOG.warn("[LineMarker-Kotlin] Found KtClass parent, checking annotations");
-                    Object[] annotations = getKotlinAnnotations(ktClass);
-                    if (annotations != null && annotations.length > 0) {
-                        LOG.warn("[LineMarker-Kotlin] Found " + annotations.length + " annotations on class");
-                        for (Object annotation : annotations) {
-                            String annotationName = getKotlinAnnotationName(annotation);
-                            LOG.warn("[LineMarker-Kotlin] Class annotation: " + annotationName);
-                            if (annotationName != null && isSpringMappingAnnotation(annotationName)) {
-                                LOG.warn("[LineMarker-Kotlin] Found Spring mapping annotation on class: " + annotationName);
-                                return true;
-                            }
-                        }
-                    }
-                }
+                // 移除了对其他元素类型的处理，避免重复显示
             }
 
             return false;
@@ -319,6 +274,38 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
         } catch (Exception e) {
             LOG.warn("[LineMarker-Kotlin] Exception in getKotlinAnnotations: " + e.getMessage());
             return null;
+        }
+    }
+
+    private boolean isAnnotationOnMethod(Object ktAnnotationEntry) {
+        try {
+            // 获取注解的父元素
+            PsiElement annotationElement = (PsiElement) ktAnnotationEntry;
+            PsiElement parent = annotationElement.getParent();
+            
+            while (parent != null) {
+                String parentClassName = parent.getClass().getSimpleName();
+                LOG.debug("[LineMarker-Kotlin-Debug] Checking parent: " + parentClassName);
+                
+                // 检查是否是方法
+                if ("KtNamedFunction".equals(parentClassName) || "KtFunction".equals(parentClassName)) {
+                    LOG.info("[LineMarker-Kotlin-Debug] Found method parent: " + parentClassName);
+                    return true;
+                }
+                
+                // 检查是否是类
+                if ("KtClass".equals(parentClassName)) {
+                    LOG.info("[LineMarker-Kotlin-Debug] Found class parent: " + parentClassName);
+                    return false;
+                }
+                
+                parent = parent.getParent();
+            }
+            
+            return false;
+        } catch (Exception e) {
+            LOG.warn("[LineMarker-Kotlin] Exception in isAnnotationOnMethod: " + e.getMessage());
+            return false;
         }
     }
 
@@ -524,7 +511,7 @@ public class RestfulUrlLineMarkerProvider implements LineMarkerProvider {
                 } catch (Exception e) {
                     LOG.warn("[LineMarker-Kotlin-Debug] Error processing KtStringTemplateExpression", e);
                 }
-                
+
                 // 回退方法：直接从文本中提取
                 String text = argumentExpression.toString();
                 LOG.info("[LineMarker-Kotlin-Debug] KtStringTemplateExpression text: '" + text + "'");
