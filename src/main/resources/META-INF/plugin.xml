@@ -3,9 +3,12 @@
     <name>Dev Toolkit Pro</name>
     <vendor email="maoba@anybots.cloud" url="https://anybots.cloud">anybots.cloud</vendor>
 
+    <!-- Plugin icon for plugin manager -->
+    <icon>/icons/pluginIcon.svg</icon>
+
     <description><![CDATA[
     IntelliJ IDEA/PyCharm plugin for RESTful API search and Git link copying.
-    
+
     Features:
     - RESTful API fuzzy search (Spring Boot, FastAPI, JAX-RS)
     - Git link copying from editor
