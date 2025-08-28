@@ -27,12 +27,25 @@ public class SearchRestfulEndpointsEverywhereAction extends AnAction {
         LOG.info("Triggering Search Everywhere for Restful Endpoints");
 
         try {
-            // 打开Search Everywhere对话框并直接定位到Restful Endpoints标签页
             SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
             if (manager != null) {
-                // 使用正确的贡献者ID来直接打开Restful Endpoints标签页
-                manager.show("DevToolkitPro.RestfulEndpoints", "", e);
-                LOG.info("Successfully opened Search Everywhere dialog with Restful Endpoints tab");
+                // 检查Search Everywhere是否已经显示
+                if (manager.isShown()) {
+                    LOG.info("Search Everywhere is already shown, switching to Restful Endpoints tab");
+                    // 如果已经显示，尝试切换到指定标签页
+                    try {
+                        manager.setSelectedTabID("DevToolkitPro.RestfulEndpoints");
+                        LOG.info("Successfully switched to Restful Endpoints tab");
+                    } catch (Exception switchEx) {
+                        LOG.warn("Failed to switch tab", switchEx);
+                        // 当弹窗已显示时，无法重新调用show方法，只能记录错误
+                        LOG.error("Cannot switch to Restful Endpoints tab when Search Everywhere is already shown");
+                    }
+                } else {
+                    // 如果没有显示，直接打开并定位到Restful Endpoints标签页
+                    manager.show("DevToolkitPro.RestfulEndpoints", "", e);
+                    LOG.info("Successfully opened Search Everywhere dialog with Restful Endpoints tab");
+                }
                 return;
             } else {
                 LOG.warn("SearchEverywhereManager is null");
@@ -42,7 +55,7 @@ public class SearchRestfulEndpointsEverywhereAction extends AnAction {
             // 如果出错，尝试使用默认的All标签页作为回退
             try {
                 SearchEverywhereManager manager = SearchEverywhereManager.getInstance(project);
-                if (manager != null) {
+                if (manager != null && !manager.isShown()) {
                     manager.show("All", "", e);
                     LOG.info("Fallback: opened Search Everywhere with All tab");
                 }
