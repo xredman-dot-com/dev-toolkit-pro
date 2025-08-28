@@ -49,8 +49,8 @@ dependencies {
 // Configure Gradle IntelliJ Plugin - 兼容多IDE环境
 intellij {
     version.set("2024.2")  // 更新到2024.2以支持最新IDE版本
-    type.set("IC") // 使用Community Edition作为基础
-    plugins.set(listOf("java", "Git4Idea"))  // Git插件
+    type.set("IU") // 使用Ultimate Edition以支持Database插件
+    plugins.set(listOf("java", "Git4Idea", "com.intellij.database"))  // Git插件和Database插件
 }
 
 tasks {

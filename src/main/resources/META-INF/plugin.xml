@@ -28,6 +28,7 @@
     <depends optional="true">com.intellij.modules.python</depends>
     <depends optional="true">org.jetbrains.kotlin</depends>
     <depends>Git4Idea</depends>
+    <depends>com.intellij.database</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- RESTful Endpoints Contributor for Choose by Name dialog -->
@@ -106,9 +107,17 @@
 
         <!-- Add Git link actions to editor context menu -->
         <group id="DevToolkitPro.EditorContextMenu" text="Dev Toolkit Pro">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <reference ref="DevToolkitPro.CopyGitLink"/>
-            <reference ref="DevToolkitPro.OpenGitLink"/>
-        </group>
+             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+             <reference ref="DevToolkitPro.CopyGitLink"/>
+             <reference ref="DevToolkitPro.OpenGitLink"/>
+         </group>
+         
+         <!-- Database Document Generation Action -->
+          <action id="GenerateDatabaseDocAction" 
+                  class="com.devtoolkit.pro.database.actions.GenerateDatabaseDocAction" 
+                  text="生成数据库说明文档" 
+                  description="生成数据库表结构说明文档">
+              <add-to-group group-id="DatabaseViewPopupMenu" anchor="last"/>
+          </action>
     </actions>
 </idea-plugin>
