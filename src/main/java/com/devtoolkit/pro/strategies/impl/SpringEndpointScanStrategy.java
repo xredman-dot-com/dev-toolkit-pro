@@ -305,7 +305,7 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
              System.err.println("Error scanning Kotlin methods: " + e.getMessage());
          }
      }
-     
+
      /**
       * 扫描单个Kotlin方法
       */
@@ -328,8 +328,19 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
                          java.lang.reflect.Method getNameMethod = method.getClass().getMethod("getName");
                          String methodName = (String) getNameMethod.invoke(method);
                          
+                         // 将Kotlin方法对象转换为PsiMethod
+                         PsiMethod psiMethod = convertKotlinMethodToPsiMethod(method);
+                         
+                         java.lang.reflect.Method getContainingClassMethod = method.getClass().getMethod("getContainingClass");
+                         Object containingClass = getContainingClassMethod.invoke(method);
+                         String className = "";
+                         if (containingClass != null) {
+                             java.lang.reflect.Method getNameMethod2 = containingClass.getClass().getMethod("getName");
+                             className = (String) getNameMethod2.invoke(containingClass);
+                         }
+                         
                          RestfulEndpointNavigationItem item = new RestfulEndpointNavigationItem(
-                              httpMethod, fullPath, "", methodName, null, project);
+                              httpMethod, fullPath, className, methodName, psiMethod, project);
                          endpoints.add(item);
                          
 
@@ -371,6 +382,22 @@ public class SpringEndpointScanStrategy implements RestfulEndpointScanStrategy {
              System.err.println("Error extracting path from Kotlin annotation: " + e.getMessage());
          }
          return "";
+     }
+     
+     /**
+      * 将Kotlin方法对象转换为PsiMethod
+      */
+     private PsiMethod convertKotlinMethodToPsiMethod(Object kotlinMethod) {
+         try {
+             // Kotlin方法对象本身就是PsiMethod的实现
+             if (kotlinMethod instanceof PsiMethod) {
+                 return (PsiMethod) kotlinMethod;
+             }
+             return null;
+         } catch (Exception e) {
+             System.err.println("Error converting Kotlin method to PsiMethod: " + e.getMessage());
+             return null;
+         }
      }
      
      /**
