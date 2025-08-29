@@ -9,7 +9,7 @@
     Features:
     - RESTful API fuzzy search (Spring Boot, FastAPI, JAX-RS)
     - Git link copying from editor
-    - Compatible with IntelliJ IDEA 2023.2+ and PyCharm 2023.2+
+    - Compatible with IntelliJ IDEA 2023.2+ to 2025.2+ and PyCharm 2023.2+
     ]]></description>
 
     <change-notes><![CDATA[
@@ -23,6 +23,7 @@
     ]]></change-notes>
 
     <!-- Product and plugin compatibility requirements -->
+    <idea-version since-build="232" until-build="252.*"/>
     <depends>com.intellij.modules.platform</depends>
     <depends optional="true" config-file="java-features.xml">com.intellij.modules.java</depends>
     <depends optional="true">com.intellij.modules.python</depends>
