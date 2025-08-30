@@ -3,21 +3,17 @@ package com.devtoolkit.pro.database.actions
 import com.devtoolkit.pro.database.DatabaseMetadataExtractor
 import com.devtoolkit.pro.database.ExcelDocumentBuilder
 import com.devtoolkit.pro.database.dialogs.DatabaseDocConfigDialog
-import com.intellij.database.model.DasDataSource
-import com.intellij.database.model.DasTable
-import com.intellij.database.psi.DbPsiFacade
+import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import com.intellij.psi.PsiElement
 import java.io.File
 
 /**
@@ -25,8 +21,35 @@ import java.io.File
  */
 class GenerateDatabaseDocAction : AnAction("生成数据库说明文档") {
     
+    companion object {
+        private const val DATABASE_PLUGIN_ID = "com.intellij.database"
+    }
+    
+    /**
+     * 检查数据库插件是否可用
+     */
+    private fun isDatabasePluginAvailable(): Boolean {
+        return try {
+            val pluginId = PluginId.getId(DATABASE_PLUGIN_ID)
+            PluginManagerCore.isPluginInstalled(pluginId) && 
+            PluginManagerCore.getPlugin(pluginId)?.isEnabled == true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
+        
+        // 检查数据库插件是否可用
+        if (!isDatabasePluginAvailable()) {
+            Messages.showWarningDialog(
+                project,
+                "此功能需要安装并启用 Database Tools and SQL 插件。\n请在 Settings > Plugins 中安装该插件后重试。",
+                "数据库插件不可用"
+            )
+            return
+        }
         
         // 显示配置对话框
         val configDialog = DatabaseDocConfigDialog(project)
@@ -43,8 +66,8 @@ class GenerateDatabaseDocAction : AnAction("生成数据库说明文档") {
                     indicator.text = "正在检查数据库连接..."
                     indicator.fraction = 0.05
                     
-                    // 在后台线程中获取数据源
-                    val dataSources = DbPsiFacade.getInstance(project).dataSources
+                    // 使用反射安全地访问数据库API
+                    val dataSources = getDataSourcesSafely(project)
                     if (dataSources.isEmpty()) {
                         ApplicationManager.getApplication().invokeLater {
                             Messages.showWarningDialog(
@@ -61,7 +84,7 @@ class GenerateDatabaseDocAction : AnAction("生成数据库说明文档") {
                     
                     val extractor = DatabaseMetadataExtractor()
                     // 从第一个数据源提取所有表信息
-                    val tables = extractor.extractTablesFromDataSource(dataSources.first().delegate)
+                    val tables = extractor.extractTablesFromDataSource(dataSources.first())
                     
                     indicator.text = "正在生成Excel文档..."
                     indicator.fraction = 0.5
@@ -95,6 +118,28 @@ class GenerateDatabaseDocAction : AnAction("生成数据库说明文档") {
         })
     }
     
+    /**
+     * 使用反射安全地获取数据源列表
+     */
+    private fun getDataSourcesSafely(project: Project): List<Any> {
+        return try {
+            val dbPsiFacadeClass = Class.forName("com.intellij.database.psi.DbPsiFacade")
+            val getInstanceMethod = dbPsiFacadeClass.getMethod("getInstance", Project::class.java)
+            val dbPsiFacade = getInstanceMethod.invoke(null, project)
+            
+            val getDataSourcesMethod = dbPsiFacadeClass.getMethod("getDataSources")
+            val dataSources = getDataSourcesMethod.invoke(dbPsiFacade) as Collection<*>
+            
+            dataSources.mapNotNull { dataSource ->
+                // 获取delegate属性
+                val delegateField = dataSource?.javaClass?.getField("delegate")
+                delegateField?.get(dataSource)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
     override fun update(e: AnActionEvent) {
         val project = e.project
         if (project == null) {
@@ -102,9 +147,12 @@ class GenerateDatabaseDocAction : AnAction("生成数据库说明文档") {
             return
         }
         
-        // 简化update方法，避免在EDT线程上进行文件系统操作
-        // 只要项目存在就显示action，具体的数据源检查在actionPerformed中进行
-        e.presentation.isEnabledAndVisible = true
+        // 检查数据库插件是否可用
+        e.presentation.isEnabledAndVisible = isDatabasePluginAvailable()
+        
+        if (!isDatabasePluginAvailable()) {
+            e.presentation.description = "需要安装并启用 Database Tools and SQL 插件"
+        }
     }
     
     override fun getActionUpdateThread(): ActionUpdateThread {
