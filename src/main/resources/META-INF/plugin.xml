@@ -55,6 +55,9 @@
         <!-- Notification Group for RestfulTool -->
         <notificationGroup id="RestfulTool" displayType="BALLOON" key="notification.group.restfultool"/>
         
+        <!-- Notification Group for SqlTools -->
+        <notificationGroup id="DevToolkitPro.SqlTools" displayType="BALLOON" key="notification.group.sqltools"/>
+        
         <!-- Tool Window -->
         <toolWindow id="DevToolkitPro" secondary="true" anchor="right" 
                     factoryClass="com.devtoolkit.pro.toolwindow.DevToolkitProToolWindowFactory"

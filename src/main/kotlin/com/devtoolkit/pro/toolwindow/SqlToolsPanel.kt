@@ -1,8 +1,9 @@
 package com.devtoolkit.pro.toolwindow
 
 import com.devtoolkit.pro.services.SqlFormatterService
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.EditorTextField
 import com.intellij.openapi.fileTypes.FileTypeManager
@@ -24,6 +25,17 @@ class SqlToolsPanel(private val project: Project) {
     private val formatButton = JButton("格式化SQL")
     private val compressButton = JButton("压缩SQL")
     private val sqlFormatterService = SqlFormatterService()
+    
+    companion object {
+        private const val NOTIFICATION_GROUP_ID = "DevToolkitPro.SqlTools"
+    }
+    
+    private fun showNotification(message: String, type: NotificationType) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup(NOTIFICATION_GROUP_ID)
+            .createNotification(message, type)
+            .notify(project)
+    }
     
     init {
         // 创建SQL编辑器，支持语法高亮
@@ -61,12 +73,12 @@ class SqlToolsPanel(private val project: Project) {
                     val formattedSql = sqlFormatterService.formatSql(sql)
                     sqlEditor.text = formattedSql
                     copyToClipboard(formattedSql)
-                    Messages.showInfoMessage(project, "格式化的SQL已复制到剪贴板", "DevToolkitPro")
+                    showNotification("格式化的SQL已复制到剪贴板", NotificationType.INFORMATION)
                 } catch (e: Exception) {
-                    Messages.showErrorDialog(project, "格式化失败: ${e.message}", "DevToolkitPro")
+                    showNotification("格式化失败: ${e.message}", NotificationType.ERROR)
                 }
             } else {
-                Messages.showWarningDialog(project, "请输入SQL语句", "DevToolkitPro")
+                showNotification("请输入SQL语句", NotificationType.WARNING)
             }
         }
         
@@ -77,12 +89,12 @@ class SqlToolsPanel(private val project: Project) {
                     val compressedSql = sqlFormatterService.compressSql(sql)
                     sqlEditor.text = compressedSql
                     copyToClipboard(compressedSql)
-                    Messages.showInfoMessage(project, "压缩的SQL已复制到剪贴板", "DevToolkitPro")
+                    showNotification("压缩的SQL已复制到剪贴板", NotificationType.INFORMATION)
                 } catch (e: Exception) {
-                    Messages.showErrorDialog(project, "压缩失败: ${e.message}", "DevToolkitPro")
+                    showNotification("压缩失败: ${e.message}", NotificationType.ERROR)
                 }
             } else {
-                Messages.showWarningDialog(project, "请输入SQL语句", "DevToolkitPro")
+                showNotification("请输入SQL语句", NotificationType.WARNING)
             }
         }
     }
