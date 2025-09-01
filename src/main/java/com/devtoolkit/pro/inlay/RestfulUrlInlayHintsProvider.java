@@ -12,6 +12,7 @@ import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.project.DumbAware;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
@@ -116,6 +117,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
         @Override
         public boolean collect(@NotNull PsiElement element, @NotNull Editor editor, @NotNull InlayHintsSink sink) {
             try {
+                // 检查是否处于dumb mode，避免IndexNotReadyException
+                if (DumbService.isDumb(element.getProject())) {
+                    LOG.debug("[InlayHints] Skipping processing during dumb mode");
+                    return true;
+                }
+                
                 // 处理Java方法
                 if (element instanceof PsiMethod) {
                     return processJavaMethod((PsiMethod) element, sink);
@@ -136,6 +143,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
         private boolean processJavaMethod(PsiMethod method, InlayHintsSink sink) {
             try {
+                // 再次检查dumb mode，确保安全
+                if (DumbService.isDumb(method.getProject())) {
+                    LOG.debug("[InlayHints-Java] Skipping Java method processing during dumb mode");
+                    return true;
+                }
+                
                 LOG.info("[InlayHints-Java] Processing Java method: " + method.getName());
                 PsiAnnotation[] annotations = method.getAnnotations();
                 LOG.debug("[InlayHints-Java] Found " + annotations.length + " annotations");
@@ -351,6 +364,12 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
         private boolean processKotlinFunction(PsiElement element, InlayHintsSink sink) {
             try {
+                // 再次检查dumb mode，确保安全
+                if (DumbService.isDumb(element.getProject())) {
+                    LOG.debug("[InlayHints-Kotlin] Skipping Kotlin function processing during dumb mode");
+                    return true;
+                }
+                
                 // 尝试多种方法获取Kotlin函数的注解，只使用第一种成功的方法
                 List<PsiElement> annotations = new ArrayList<>();
                 boolean foundAnnotations = false;
