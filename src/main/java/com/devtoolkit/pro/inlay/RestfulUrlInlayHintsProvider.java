@@ -122,7 +122,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     LOG.debug("[InlayHints] Skipping processing during dumb mode");
                     return true;
                 }
-                
+
                 // 处理Java方法
                 if (element instanceof PsiMethod) {
                     return processJavaMethod((PsiMethod) element, sink);
@@ -135,6 +135,9 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
                 return true;
 
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("Error processing element in InlayHints: " + element, e);
                 return true;
@@ -148,7 +151,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     LOG.debug("[InlayHints-Java] Skipping Java method processing during dumb mode");
                     return true;
                 }
-                
+
                 LOG.info("[InlayHints-Java] Processing Java method: " + method.getName());
                 PsiAnnotation[] annotations = method.getAnnotations();
                 LOG.debug("[InlayHints-Java] Found " + annotations.length + " annotations");
@@ -226,6 +229,9 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 sink.addInlineElement(targetAnnotation.getTextRange().getEndOffset(), false, withTooltip, false);
 
                 return true;
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("[InlayHints-Java] Error processing Java method: " + method.getName(), e);
                 return true;
@@ -369,7 +375,7 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                     LOG.debug("[InlayHints-Kotlin] Skipping Kotlin function processing during dumb mode");
                     return true;
                 }
-                
+
                 // 尝试多种方法获取Kotlin函数的注解，只使用第一种成功的方法
                 List<PsiElement> annotations = new ArrayList<>();
                 boolean foundAnnotations = false;
@@ -476,6 +482,9 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
                     break; // 只处理第一个匹配的注解
                 }
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("Error processing Kotlin function in InlayHints: " + e.getMessage(), e);
             }
