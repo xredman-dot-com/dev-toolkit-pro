@@ -613,6 +613,16 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 }
                 LOG.info("[InlayHints-Kotlin] No @RequestMapping found on class");
                 return null;
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                // Check if the cause is ProcessCanceledException
+                if (e.getCause() instanceof com.intellij.openapi.progress.ProcessCanceledException) {
+                    throw (com.intellij.openapi.progress.ProcessCanceledException) e.getCause();
+                }
+                LOG.error("[InlayHints-Kotlin] Error finding class RequestMapping", e);
+                return null;
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("[InlayHints-Kotlin] Error finding class RequestMapping", e);
                 return null;
@@ -633,6 +643,16 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
                 LOG.info("[InlayHints-Kotlin] getShortName returned null");
                 return "";
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                // Check if the cause is ProcessCanceledException
+                if (e.getCause() instanceof com.intellij.openapi.progress.ProcessCanceledException) {
+                    throw (com.intellij.openapi.progress.ProcessCanceledException) e.getCause();
+                }
+                LOG.error("[InlayHints-Kotlin] Error extracting annotation name", e);
+                return "";
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("[InlayHints-Kotlin] Error extracting annotation name", e);
                 return "";
@@ -780,6 +800,16 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 }
                 LOG.warn("[InlayHints-Kotlin-Debug] No valid path found in Kotlin annotation");
                 return null;
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                // Check if the cause is ProcessCanceledException
+                if (e.getCause() instanceof com.intellij.openapi.progress.ProcessCanceledException) {
+                    throw (com.intellij.openapi.progress.ProcessCanceledException) e.getCause();
+                }
+                LOG.warn("[InlayHints-Kotlin-Debug] Error extracting path from Kotlin annotation", e);
+                return null;
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.warn("[InlayHints-Kotlin-Debug] Error extracting path from Kotlin annotation", e);
                 return null;
@@ -835,6 +865,16 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 }
                 LOG.info("[InlayHints-Kotlin-Debug] No valid path found in annotation");
                 return null;
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                // Check if the cause is ProcessCanceledException
+                if (e.getCause() instanceof com.intellij.openapi.progress.ProcessCanceledException) {
+                    throw (com.intellij.openapi.progress.ProcessCanceledException) e.getCause();
+                }
+                LOG.error("[InlayHints-Kotlin-Debug] Error extracting path from Kotlin annotation", e);
+                return null;
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("[InlayHints-Kotlin-Debug] Error extracting path from Kotlin annotation", e);
                 return null;
@@ -911,6 +951,15 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                         return leftValue + rightValue;
                     }
                 }
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                // Check if the cause is ProcessCanceledException
+                if (e.getCause() instanceof com.intellij.openapi.progress.ProcessCanceledException) {
+                    throw (com.intellij.openapi.progress.ProcessCanceledException) e.getCause();
+                }
+                LOG.warn("[InlayHints-Kotlin-Debug] Error evaluating Kotlin binary expression", e);
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.warn("[InlayHints-Kotlin-Debug] Error evaluating Kotlin binary expression", e);
             }
@@ -944,6 +993,9 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
                 }
 
                 LOG.warn("[InlayHints-Kotlin-Debug] Could not resolve Kotlin reference: " + refExpr.toString());
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.warn("[InlayHints-Kotlin-Debug] Error evaluating Kotlin reference", e);
             }
@@ -994,6 +1046,16 @@ public class RestfulUrlInlayHintsProvider implements InlayHintsProvider<NoSettin
 
                 LOG.info("[InlayHints-Kotlin-Debug] No entries found in KtStringTemplateExpression");
                 return null;
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                // Check if the cause is ProcessCanceledException
+                if (e.getCause() instanceof com.intellij.openapi.progress.ProcessCanceledException) {
+                    throw (com.intellij.openapi.progress.ProcessCanceledException) e.getCause();
+                }
+                LOG.error("[InlayHints-Kotlin-Debug] Error processing KtStringTemplateExpression", e);
+                return null;
+            } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
+                // ProcessCanceledException should be rethrown, not logged
+                throw e;
             } catch (Exception e) {
                 LOG.error("[InlayHints-Kotlin-Debug] Error processing KtStringTemplateExpression", e);
                 return null;
